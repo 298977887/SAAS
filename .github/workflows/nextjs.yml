@@ -37,26 +37,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'pnpm'
-          
-      # 安装 PNPM
-      - name: 安装 PNPM
-        uses: pnpm/action-setup@v2
-        with:
-          version: latest
-          run_install: false
 
       # 安装依赖
       - name: 安装依赖
-        run: pnpm install --frozen-lockfile
+        run: npm install --frozen-lockfile
 
       # 运行 ESLint
       - name: 运行 ESLint
-        run: pnpm lint
+        run: npm lint
 
       # 构建应用
       - name: 构建应用
-        run: pnpm build
+        run: npm build
 
       # 上传构建产物
       - name: 上传构建产物
@@ -67,7 +59,7 @@ jobs:
             .next
             public
             package.json
-            pnpm-lock.yaml
+            npm-lock.yaml
             next.config.ts
 
   # 部署作业
@@ -88,17 +80,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-      
-      # 安装 PNPM
-      - name: 安装 PNPM
-        uses: pnpm/action-setup@v2
-        with:
-          version: latest
-          run_install: false
 
       # 安装生产依赖
       - name: 安装生产依赖
-        run: pnpm install --prod
+        run: npm install --prod
 
       # 构建 Docker 镜像并推送
       - name: 登录到 Docker Hub
