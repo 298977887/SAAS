@@ -2,7 +2,7 @@
  * 添加成员模态框
  * 作者: 阿瑞
  * 功能: 创建新用户并添加到当前工作空间
- * 版本: 1.1
+ * 版本: 1.2
  */
 
 'use client';
@@ -12,8 +12,9 @@ import Modal from '@/components/ui/Modal';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import { ThemeMode } from '@/types/enum';
-import { toast } from 'sonner';
+import { useNotification } from '@/components/ui/Notification';
 import { Icon } from '@iconify/react';
+import { SystemRoleType } from '@/models/system/types';
 
 /**
  * 添加成员模态框属性
@@ -39,6 +40,7 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({
   themeMode
 }) => {
   const isDarkMode = themeMode === ThemeMode.Dark;
+  const notification = useNotification();
   
   // 表单状态
   const [formData, setFormData] = useState({
@@ -47,7 +49,9 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'user'
+    role_type: SystemRoleType.USER,
+    role_name: '普通用户',
+    is_custom_role: false
   });
   
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,7 +64,41 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({
    */
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    if (name === 'role_type') {
+      // 处理角色类型变更
+      const roleType = value as SystemRoleType;
+      let roleName = '普通用户';
+      
+      // 根据角色类型设置对应的显示名称
+      switch (roleType) {
+        case SystemRoleType.ADMIN:
+          roleName = '管理员';
+          break;
+        case SystemRoleType.BOSS:
+          roleName = '老板';
+          break;
+        case SystemRoleType.FINANCE:
+          roleName = '财务';
+          break;
+        case SystemRoleType.OPERATION:
+          roleName = '运营';
+          break;
+        case SystemRoleType.CUSTOMER:
+          roleName = '客服';
+          break;
+        default:
+          roleName = '普通用户';
+      }
+      
+      setFormData(prev => ({ 
+        ...prev, 
+        role_type: roleType,
+        role_name: roleName 
+      }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
     
     // 当密码变化时，评估密码强度
     if (name === 'password') {
@@ -80,7 +118,9 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({
       email: '',
       password: '',
       confirmPassword: '',
-      role: 'user'
+      role_type: SystemRoleType.USER,
+      role_name: '普通用户',
+      is_custom_role: false
     });
     setError('');
     setPasswordStrength(0);
@@ -207,7 +247,9 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({
           phone: formData.phone,
           password: formData.password,
           createNewUser: true,
-          role: formData.role,
+          role_type: formData.role_type,
+          role_name: formData.role_name,
+          is_custom_role: formData.is_custom_role,
           workspaceId
         })
       });
@@ -220,7 +262,7 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({
       }
       
       // 成功提示
-      toast.success('成员创建并添加成功');
+      notification.success('成员创建并添加成功');
       
       // 关闭模态框并刷新列表
       resetForm();
@@ -401,18 +443,18 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({
             />
           </div>
           
-          <div className={`transition-all duration-200 ${focusedField === 'role' ? 'transform -translate-y-1' : ''}`}>
-            <label htmlFor="role" className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} mb-1 flex items-center`}>
+          <div className={`transition-all duration-200 ${focusedField === 'role_type' ? 'transform -translate-y-1' : ''}`}>
+            <label htmlFor="role_type" className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} mb-1 flex items-center`}>
               角色
               <Icon icon="lucide:shield" className="w-4 h-4 ml-1 text-gray-400" />
             </label>
             <div className="relative">
               <select
-                id="role"
-                name="role"
-                value={formData.role}
+                id="role_type"
+                name="role_type"
+                value={formData.role_type}
                 onChange={handleChange}
-                onFocus={() => handleFocus('role')}
+                onFocus={() => handleFocus('role_type')}
                 onBlur={handleBlur}
                 className={`w-full px-3 py-2 pl-9 border rounded-md appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   isDarkMode
@@ -420,8 +462,12 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({
                     : 'bg-white text-gray-900 border-gray-300'
                 }`}
               >
-                <option value="user">普通用户</option>
-                <option value="admin">管理员</option>
+                <option value={SystemRoleType.USER}>普通用户</option>
+                <option value={SystemRoleType.ADMIN}>管理员</option>
+                <option value={SystemRoleType.BOSS}>老板</option>
+                <option value={SystemRoleType.FINANCE}>财务</option>
+                <option value={SystemRoleType.OPERATION}>运营</option>
+                <option value={SystemRoleType.CUSTOMER}>客服</option>
               </select>
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Icon icon="lucide:users" className="w-4 h-4 text-gray-400" />
@@ -431,7 +477,7 @@ const AddMemberModal: React.FC<AddMemberModalProps> = ({
               </div>
             </div>
             <p className={`mt-1 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-              管理员可以添加/移除成员，普通用户只能查看
+              选择合适的角色分配给新成员，不同角色拥有不同的操作权限
             </p>
           </div>
         </div>

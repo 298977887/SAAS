@@ -335,6 +335,86 @@ export interface NotificationProviderProps {
 }
 
 /**
+ * 用于直接调用的通知方法
+ * 这是一个全局事件发射器模式实现，避免直接调用hooks
+ */
+// 创建一个自定义事件总线，用于触发通知
+const notificationEventBus = {
+  listeners: new Map<string, Array<(message: React.ReactNode, options?: Partial<NotificationProps>) => string>>(),
+  
+  // 添加监听器
+  on(type: NotificationType, callback: (message: React.ReactNode, options?: Partial<NotificationProps>) => string) {
+    if (!this.listeners.has(type)) {
+      this.listeners.set(type, []);
+    }
+    this.listeners.get(type)!.push(callback);
+  },
+  
+  // 移除监听器
+  off(type: NotificationType, callback: (message: React.ReactNode, options?: Partial<NotificationProps>) => string) {
+    if (!this.listeners.has(type)) return;
+    const callbacks = this.listeners.get(type)!;
+    const index = callbacks.indexOf(callback);
+    if (index !== -1) {
+      callbacks.splice(index, 1);
+    }
+  },
+  
+  // 发射事件
+  emit(type: NotificationType, message: React.ReactNode, options?: Partial<NotificationProps>): string {
+    if (!this.listeners.has(type) || this.listeners.get(type)!.length === 0) {
+      console.error(`没有注册"${type}"类型的通知处理器，确保在NotificationProvider内使用`);
+      return '';
+    }
+    
+    try {
+      // 调用第一个注册的处理器
+      return this.listeners.get(type)![0](message, options);
+    } catch (e) {
+      console.error('无法创建通知，确保在NotificationProvider内调用', e);
+      return '';
+    }
+  }
+};
+
+/**
+ * 通知事件监听组件
+ * 连接事件总线和通知系统
+ */
+export const NotificationListener: React.FC = () => {
+  const notification = useNotification();
+  
+  // 在组件挂载时注册处理器
+  useEffect(() => {
+    const successHandler = (message: React.ReactNode, options?: Partial<NotificationProps>) => 
+      notification.success(message, options);
+    const errorHandler = (message: React.ReactNode, options?: Partial<NotificationProps>) => 
+      notification.error(message, options);
+    const warningHandler = (message: React.ReactNode, options?: Partial<NotificationProps>) => 
+      notification.warning(message, options);
+    const infoHandler = (message: React.ReactNode, options?: Partial<NotificationProps>) => 
+      notification.info(message, options);
+    
+    // 注册所有处理器
+    notificationEventBus.on('success', successHandler);
+    notificationEventBus.on('error', errorHandler);
+    notificationEventBus.on('warning', warningHandler);
+    notificationEventBus.on('info', infoHandler);
+    
+    // 清理函数
+    return () => {
+      notificationEventBus.off('success', successHandler);
+      notificationEventBus.off('error', errorHandler);
+      notificationEventBus.off('warning', warningHandler);
+      notificationEventBus.off('info', infoHandler);
+    };
+  }, [notification]);
+  
+  // 这个组件不渲染任何内容
+  return null;
+};
+
+/**
  * 通知提供者组件
  * 管理所有通知状态并提供通知操作方法
  */
@@ -372,6 +452,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
 
   return (
     <NotificationContext.Provider value={contextValue}>
+      <NotificationListener />
       {children}
     </NotificationContext.Provider>
   );
@@ -438,41 +519,20 @@ export const NotificationContainer: React.FC<{ position?: NotificationPosition }
 
 /**
  * 用于直接调用的通知方法
- * 注意：必须确保在NotificationProvider内使用
+ * 通过事件总线触发通知，避免直接调用hooks
  */
 export const notify = {
-  success: (message: React.ReactNode, options?: Partial<NotificationProps>) => {
-    try {
-      return useNotification().success(message, options);
-    } catch (e) {
-      console.error('无法创建通知，确保在NotificationProvider内调用', e);
-      return '';
-    }
-  },
-  error: (message: React.ReactNode, options?: Partial<NotificationProps>) => {
-    try {
-      return useNotification().error(message, options);
-    } catch (e) {
-      console.error('无法创建通知，确保在NotificationProvider内调用', e);
-      return '';
-    }
-  },
-  warning: (message: React.ReactNode, options?: Partial<NotificationProps>) => {
-    try {
-      return useNotification().warning(message, options);
-    } catch (e) {
-      console.error('无法创建通知，确保在NotificationProvider内调用', e);
-      return '';
-    }
-  },
-  info: (message: React.ReactNode, options?: Partial<NotificationProps>) => {
-    try {
-      return useNotification().info(message, options);
-    } catch (e) {
-      console.error('无法创建通知，确保在NotificationProvider内调用', e);
-      return '';
-    }
-  },
+  success: (message: React.ReactNode, options?: Partial<NotificationProps>) => 
+    notificationEventBus.emit('success', message, options),
+  
+  error: (message: React.ReactNode, options?: Partial<NotificationProps>) => 
+    notificationEventBus.emit('error', message, options),
+  
+  warning: (message: React.ReactNode, options?: Partial<NotificationProps>) => 
+    notificationEventBus.emit('warning', message, options),
+  
+  info: (message: React.ReactNode, options?: Partial<NotificationProps>) => 
+    notificationEventBus.emit('info', message, options),
 };
 
 export default Notification; 

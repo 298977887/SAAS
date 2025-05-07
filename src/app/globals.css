@@ -272,6 +272,22 @@ body.dark-theme {
   transform: translateY(0);
 }
 
+/* 导航栏紧凑按钮 */
+.nav-btn-primary {
+  @apply rounded-full font-medium text-white py-2 px-6 transition-all duration-300;
+  background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
+  box-shadow: 0 3px 10px rgba(45, 127, 249, 0.2);
+}
+
+.nav-btn-primary:hover {
+  box-shadow: 0 6px 15px rgba(45, 127, 249, 0.3);
+  transform: translateY(-2px);
+}
+
+.nav-btn-primary:active {
+  transform: translateY(0);
+}
+
 .btn-secondary {
   @apply rounded-full font-medium py-3 px-8 transition-all duration-300;
   background: rgba(255, 255, 255, 0.25);
@@ -280,24 +296,37 @@ body.dark-theme {
   color: var(--text-primary);
 }
 
-.dark-theme .btn-secondary {
+/* 导航栏紧凑次要按钮 */
+.nav-btn-secondary {
+  @apply rounded-full font-medium py-2 px-6 transition-all duration-300;
+  background: rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(8px);
+  color: var(--text-primary);
+}
+
+.dark-theme .btn-secondary,
+.dark-theme .nav-btn-secondary {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.15);
   color: var(--text-light);
 }
 
-.light-theme .btn-secondary {
+.light-theme .btn-secondary,
+.light-theme .nav-btn-secondary {
   background: rgba(255, 255, 255, 0.25);
   border: 1px solid rgba(255, 255, 255, 0.5);
   color: var(--text-primary);
 }
 
-.btn-secondary:hover {
+.btn-secondary:hover,
+.nav-btn-secondary:hover {
   background: rgba(255, 255, 255, 0.35);
   transform: translateY(-2px);
 }
 
-.dark-theme .btn-secondary:hover {
+.dark-theme .btn-secondary:hover,
+.dark-theme .nav-btn-secondary:hover {
   background: rgba(255, 255, 255, 0.15);
 }
 

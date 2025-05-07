@@ -2,12 +2,12 @@
  * 用户状态管理模块
  * 作者: 阿瑞
  * 功能: 管理用户登录状态、权限和个人信息
- * 版本: 1.1
+ * 版本: 1.2
  */
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { WorkspaceStatus, UserRole, UserStatus } from '@/models/system/types';
+import { WorkspaceStatus, UserStatus } from '@/models/system/types';
 
 /**
  * 用户信息类型定义
@@ -18,7 +18,9 @@ export interface IUserInfo {
   username: string;
   email: string;
   phone: string;
-  role: UserRole;
+  roleType: string;         // 角色类型
+  roleName: string;         // 角色显示名称
+  isCustomRole: boolean;    // 是否为自定义角色
   status: UserStatus;
   workspace: {
     id: number;

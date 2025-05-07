@@ -2,7 +2,7 @@
  * 系统用户接口定义
  * 作者: 阿瑞
  * 功能: 定义系统用户数据模型接口
- * 版本: 1.0
+ * 版本: 1.1
  */
 
 /**
@@ -14,11 +14,24 @@ export enum UserStatus {
 }
 
 /**
- * 用户角色枚举
+ * 系统预设角色枚举
  */
-export enum UserRole {
-  ADMIN = 'admin', // 管理员
-  USER = 'user',   // 普通用户
+export enum SystemRoleType {
+  ADMIN = 'admin',       // 管理员
+  BOSS = 'boss',         // 老板
+  FINANCE = 'finance',   // 财务
+  OPERATION = 'operation', // 运营
+  CUSTOMER = 'customer', // 客服
+  USER = 'user',         // 普通用户
+}
+
+/**
+ * 用户角色接口定义
+ */
+export interface IUserRole {
+  type: string;          // 角色类型，可以是SystemRoleType或自定义值
+  name: string;          // 角色显示名称
+  is_custom: boolean;    // 是否为自定义角色
 }
 
 /**
@@ -31,7 +44,9 @@ export interface ISystemUser {
   email: string;           // 电子邮箱
   phone: string;           // 手机号码
   workspace_id: number;    // 所属工作空间ID
-  role: UserRole;          // 系统角色
+  role_type: string;       // 系统角色类型
+  role_name: string;       // 角色显示名称
+  is_custom_role: boolean; // 是否为自定义角色
   status: UserStatus;      // 状态
   invited_by?: number;     // 邀请人ID
   invitation_token?: string; // 邀请验证令牌
@@ -49,7 +64,9 @@ export interface ICreateUserParams {
   email: string;           // 电子邮箱
   phone: string;           // 手机号码
   workspace_id: number;    // 所属工作空间ID
-  role?: UserRole;         // 系统角色
+  role_type?: string;      // 角色类型
+  role_name?: string;      // 角色显示名称
+  is_custom_role?: boolean; // 是否为自定义角色
   invited_by?: number;     // 邀请人ID
   invitation_token?: string; // 邀请验证令牌
 }
@@ -62,7 +79,19 @@ export interface IUpdateUserParams {
   password?: string;       // 密码
   email?: string;          // 电子邮箱
   phone?: string;          // 手机号码
-  role?: UserRole;         // 系统角色
+  role_type?: string;      // 角色类型
+  role_name?: string;      // 角色显示名称
+  is_custom_role?: boolean; // 是否为自定义角色
   status?: UserStatus;     // 状态
   last_login_at?: Date;    // 最后登录时间
+}
+
+/**
+ * 系统角色创建/更新参数
+ */
+export interface IUserRoleParams {
+  type: string;           // 角色类型
+  name: string;           // 角色显示名称
+  is_custom: boolean;     // 是否为自定义角色
+  workspace_id: number;   // 所属工作空间ID
 } 

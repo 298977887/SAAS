@@ -1,7 +1,7 @@
 /**
  * @作者: 阿瑞
  * @功能: 毛玻璃效果模态框组件
- * @版本: 1.0.1
+ * @版本: 1.0.2
  */
 
 'use client';
@@ -39,6 +39,7 @@ export interface ModalProps {
   className?: string;
   overlayClassName?: string;
   transitionDuration?: number;
+  closeIconClass?: string;
 }
 
 /**
@@ -60,10 +61,12 @@ const Modal = ({
   preventScroll = true,
   className = '',
   overlayClassName = '',
-  transitionDuration = 200,
+  transitionDuration = 300, // 默认增加到300ms提供更流畅的动画效果
+  closeIconClass = '',
 }: ModalProps) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   
   // 尺寸样式映射
   const sizeStyles = {
@@ -117,6 +120,13 @@ const Modal = ({
       bottom: 'opacity-100 translate-y-0',
       left: 'opacity-100 translate-x-0',
     },
+    exit: {
+      center: 'opacity-0 scale-95',
+      top: 'opacity-0 -translate-y-full',
+      right: 'opacity-0 translate-x-full',
+      bottom: 'opacity-0 translate-y-full',
+      left: 'opacity-0 -translate-x-full',
+    }
   };
   
   // 处理滚动锁定
@@ -134,55 +144,75 @@ const Modal = ({
     };
   }, [isOpen, preventScroll]);
   
+  // 处理关闭动画和逻辑
+  const handleClose = () => {
+    if (isClosing) return;
+    
+    setIsClosing(true);
+    setTimeout(() => {
+      onClose();
+      setIsClosing(false);
+    }, transitionDuration);
+  };
+  
   // 处理点击外部关闭
   const handleOutsideClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!closeOnOutsideClick) return;
     if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
-      onClose();
+      handleClose();
     }
   };
   
   // 处理ESC键关闭
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (isOpen && e.key === 'Escape') {
-        onClose();
+      if (isOpen && e.key === 'Escape' && !isClosing) {
+        handleClose();
       }
     };
     
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [isOpen, onClose]);
+  }, [isOpen, isClosing]);
 
-  // 处理动画状态
+  // 处理打开动画状态
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !isClosing) {
       setIsAnimating(true);
       const timer = setTimeout(() => setIsAnimating(false), 50);
       return () => clearTimeout(timer);
     }
     return () => {};
-  }, [isOpen]);
+  }, [isOpen, isClosing]);
 
-  // 客户端检查
-  if (typeof window === 'undefined') return null;
+  // 防止客户端渲染不匹配
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+    return () => setIsMounted(false);
+  }, []);
   
-  // 在模态框关闭时不渲染任何内容
-  if (!isOpen) return null;
+  // 客户端检查
+  if (!isMounted || typeof window === 'undefined') return null;
+  
+  // 在模态框关闭且没有处于关闭动画状态时不渲染内容
+  if (!isOpen && !isClosing) return null;
   
   return createPortal(
     <div 
       className={`fixed inset-0 z-50 ${positionStyles[position]} overflow-auto`}
       onClick={handleOutsideClick}
       style={{
-        transition: `opacity ${transitionDuration}ms ease-in-out`,
+        transition: `opacity ${transitionDuration}ms cubic-bezier(0.4, 0, 0.2, 1)`,
+        opacity: isClosing ? 0 : 1,
       }}
     >
       {/* 背景遮罩 */}
       <div 
         className={`fixed inset-0 bg-black/40 backdrop-blur-sm ${overlayClassName}`}
         style={{
-          transition: `opacity ${transitionDuration}ms ease-in-out`,
+          transition: `opacity ${transitionDuration}ms cubic-bezier(0.4, 0, 0.2, 1)`,
+          opacity: isClosing ? 0 : (isAnimating ? 0 : 1),
         }}
       />
       
@@ -197,10 +227,13 @@ const Modal = ({
           z-50
           ${className}
           transform transition-all
-          ${isAnimating ? transitionStyles.enter[position] : transitionStyles.enterActive[position]}
+          ${isClosing 
+            ? transitionStyles.exit[position] 
+            : (isAnimating ? transitionStyles.enter[position] : transitionStyles.enterActive[position])
+          }
         `}
         style={{
-          transition: `all ${transitionDuration}ms ease-in-out`,
+          transition: `all ${transitionDuration}ms cubic-bezier(0.4, 0, 0.2, 1)`,
           transformOrigin: 'center',
         }}
       >
@@ -215,8 +248,9 @@ const Modal = ({
             {showCloseButton && (
               <button
                 type="button"
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none"
-                onClick={onClose}
+                className={`text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded transition-colors ${closeIconClass}`}
+                onClick={handleClose}
+                aria-label="关闭"
               >
                 <Icon icon="lucide:x" className="w-5 h-5" />
               </button>

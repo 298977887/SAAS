@@ -3,7 +3,7 @@
  * 作者: 阿瑞
  * 功能: 提供用户工作空间界面和管理，使用毛玻璃UI效果
  * 布局: 使用侧边栏布局，左侧为导航和用户信息，右侧为主工作区
- * 版本: 3.0
+ * 版本: 3.1
  */
 
 'use client';
@@ -14,7 +14,7 @@ import Link from 'next/link';
 import { useUserInfo, useUserActions, useIsAuthenticated, useAccessToken } from '@/store/userStore';
 import { useThemeMode } from '@/store/settingStore';
 import { ThemeMode } from '@/types/enum';
-import { UserRole } from '@/models/system/types';
+import { SystemRoleType } from '@/models/system/types';
 import AddMemberModal from '@/components/AddMemberModal';
 import InviteModal from '@/components/InviteModal';
 
@@ -35,7 +35,9 @@ interface Member {
   id: number;
   username: string;
   email: string;
-  role: string;
+  roleType: string;
+  roleName: string;
+  isCustomRole: boolean;
   status: number;
 }
 
@@ -133,7 +135,7 @@ export default function WorkspacePage() {
         }
       } else {
         // 尝试读取错误消息
-        const errorData = await teamsResponse.json().catch(e => ({ error: '无法解析错误响应' }));
+        const errorData = await teamsResponse.json().catch(_e => ({ error: '无法解析错误响应' }));
         console.error('获取团队列表失败, 状态码:', teamsResponse.status, '错误:', errorData);
       }
     } catch (error) {
@@ -168,7 +170,7 @@ export default function WorkspacePage() {
         setMembers(membersData.members || []);
       } else {
         // 尝试读取错误消息
-        const errorData = await membersResponse.json().catch(e => ({ error: '无法解析错误响应' }));
+        const errorData = await membersResponse.json().catch(_e => ({ error: '无法解析错误响应' }));
         console.error('获取成员列表失败, 状态码:', membersResponse.status, '错误:', errorData);
       }
     } catch (error) {
@@ -204,7 +206,13 @@ export default function WorkspacePage() {
    * 处理团队点击
    */
   const handleTeamClick = (teamId: number) => {
+    // 找到对应的团队对象
+    const team = teams.find(t => t.id === teamId);
     setActiveTeam(teamId);
+    // 使用teamCode作为导航标识符，提高安全性
+    if (team) {
+      router.push(`/team/${team.teamCode}`);
+    }
   };
 
   // 未登录或加载中时显示加载状态
@@ -240,11 +248,7 @@ export default function WorkspacePage() {
         {/* 侧边栏导航 */}
         <aside className={`w-64 flex-shrink-0 h-screen overflow-y-auto fixed left-0 top-0 ${isDarkMode ? 'glass-card-dark' : 'glass-card'} border-r ${isDarkMode ? 'border-gray-800' : 'border-gray-200'} shadow-lg`}>
           <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex flex-col items-center">
-            <div className={`w-12 h-12 rounded-full ${isDarkMode ? 'bg-blue-600/20' : 'bg-blue-100'} flex items-center justify-center mb-2`}>
-              <span className={`text-xl font-semibold ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>
-                {userInfo.workspace?.name?.charAt(0).toUpperCase() || 'W'}
-              </span>
-            </div>
+
             <h1 className={`text-xl font-bold truncate text-center ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               {userInfo.workspace?.name || '我的工作空间'}
             </h1>
@@ -262,11 +266,11 @@ export default function WorkspacePage() {
               <div>
                 <p className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{userInfo.username}</p>
                 <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                  {userInfo.role === UserRole.ADMIN ? '管理员' : '普通用户'}
+                  {userInfo.roleName}
                 </p>
               </div>
             </div>
-            <div className="mt-3 space-y-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+            <div className="mt-3 space-y-2 border-gray-200 dark:border-gray-700 rounded-lg p-3">
               <div className={`flex justify-between text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 <span className="text-xs">邮箱:</span>
                 <span className="font-medium text-xs truncate ml-2">{userInfo.email}</span>
@@ -329,7 +333,7 @@ export default function WorkspacePage() {
                           <span className={`block font-medium text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{team.name}</span>
                           <span className={`block text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>ID: {team.teamCode}</span>
                         </div>
-                        <div>
+                        <div className="flex items-center">
                           <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${
                             team.status === 1 
                               ? 'bg-green-100 text-green-800' 
@@ -337,6 +341,14 @@ export default function WorkspacePage() {
                           }`}>
                             {team.status === 1 ? '正常' : '停用'}
                           </span>
+                          <svg 
+                            className={`ml-2 w-4 h-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} 
+                            fill="none" 
+                            viewBox="0 0 24 24" 
+                            stroke="currentColor"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
                         </div>
                       </div>
                     </li>
@@ -378,7 +390,7 @@ export default function WorkspacePage() {
             <div className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} rounded-lg overflow-hidden`}>
               <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
                 <h2 className={`text-lg font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>工作空间成员</h2>
-                {userInfo.role === UserRole.ADMIN && (
+                {userInfo.roleType === SystemRoleType.ADMIN && (
                   <div className="flex space-x-2">
                     <button 
                       onClick={handleAddMember} 
@@ -403,7 +415,7 @@ export default function WorkspacePage() {
               ) : members.length === 0 ? (
                 <div className={`text-center p-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                   <p>工作空间暂无其他成员</p>
-                  {userInfo.role === UserRole.ADMIN && (
+                  {userInfo.roleType === SystemRoleType.ADMIN && (
                     <button onClick={handleInvite} className="btn-primary mt-4 text-sm">
                       邀请成员加入
                     </button>
@@ -426,7 +438,7 @@ export default function WorkspacePage() {
                         <th scope="col" className={`px-6 py-3 text-left text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-500'} uppercase tracking-wider`}>
                           状态
                         </th>
-                        {userInfo.role === UserRole.ADMIN && (
+                        {userInfo.roleType === SystemRoleType.ADMIN && (
                           <th scope="col" className={`px-6 py-3 text-right text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-500'} uppercase tracking-wider`}>
                             操作
                           </th>
@@ -443,7 +455,7 @@ export default function WorkspacePage() {
                             {member.email}
                           </td>
                           <td className={`px-6 py-4 whitespace-nowrap text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>
-                            {member.role === 'admin' ? '管理员' : '普通用户'}
+                            {member.roleName}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -454,14 +466,14 @@ export default function WorkspacePage() {
                               {member.status === 1 ? '已启用' : '已禁用'}
                             </span>
                           </td>
-                          {userInfo.role === UserRole.ADMIN && (
+                          {userInfo.roleType === SystemRoleType.ADMIN && (
                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                               {member.id !== userInfo.id && (
                                 <Link href={`/workspace/edit-member/${member.id}`} className="text-indigo-600 hover:text-indigo-900 mr-4">
                                   编辑
                                 </Link>
                               )}
-                              {member.id !== userInfo.id && member.role !== 'admin' && (
+                              {member.id !== userInfo.id && member.roleType !== SystemRoleType.ADMIN && (
                                 <button className="text-red-600 hover:text-red-900">
                                   {member.status === 1 ? '禁用' : '启用'}
                                 </button>

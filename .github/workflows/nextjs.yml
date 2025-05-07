@@ -1,0 +1,127 @@
+name: Next.js CI/CD 流水线
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+# 设置权限
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 定义作业和环境变量
+env:
+  DB_HOST: ${{ secrets.DB_HOST }}
+  DB_PORT: ${{ secrets.DB_PORT }}
+  DB_USER: ${{ secrets.DB_USER }}
+  DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+  DB_DATABASE: ${{ secrets.DB_DATABASE }}
+  DB_ADMIN_USER: ${{ secrets.DB_ADMIN_USER }}
+  DB_ADMIN_PASSWORD: ${{ secrets.DB_ADMIN_PASSWORD }}
+
+jobs:
+  # 构建作业
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 检出代码
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      # 配置 Node.js
+      - name: 配置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          
+      # 安装 PNPM
+      - name: 安装 PNPM
+        uses: pnpm/action-setup@v2
+        with:
+          version: latest
+          run_install: false
+
+      # 安装依赖
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+
+      # 运行 ESLint
+      - name: 运行 ESLint
+        run: pnpm lint
+
+      # 构建应用
+      - name: 构建应用
+        run: pnpm build
+
+      # 上传构建产物
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: |
+            .next
+            public
+            package.json
+            pnpm-lock.yaml
+            next.config.ts
+
+  # 部署作业
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      # 下载构建产物
+      - name: 下载构建产物
+        uses: actions/download-artifact@v4
+        with:
+          name: build-output
+
+      # 配置 Node.js
+      - name: 配置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      # 安装 PNPM
+      - name: 安装 PNPM
+        uses: pnpm/action-setup@v2
+        with:
+          version: latest
+          run_install: false
+
+      # 安装生产依赖
+      - name: 安装生产依赖
+        run: pnpm install --prod
+
+      # 构建 Docker 镜像并推送
+      - name: 登录到 Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: 构建并推送 Docker 镜像
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/saas-app:latest
+
+      # 可选: 部署到服务器
+      - name: 部署到服务器
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USERNAME }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            cd /path/to/deployment
+            docker-compose pull
+            docker-compose up -d 

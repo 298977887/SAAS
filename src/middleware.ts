@@ -31,7 +31,7 @@ const authConfig: AuthConfig = {
     '/reset-password',
     '/workspace/public'
   ],
-  clientSideAuthPaths: ['/workspace'],
+  clientSideAuthPaths: ['/workspace', '/team'],
   staticAssetRoutes: [
     '/_next/',
     '/fonts/',

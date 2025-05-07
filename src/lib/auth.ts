@@ -2,7 +2,7 @@
  * 认证工具类
  * 作者: 阿瑞
  * 功能: 提供密码加密验证和JWT生成功能
- * 版本: 1.0
+ * 版本: 1.2
  */
 
 import bcrypt from 'bcryptjs';
@@ -55,8 +55,8 @@ export class AuthUtils {
       id: user.id,
       username: user.username,
       email: user.email,
-      role: user.role,
-      workspace_id: user.workspace_id
+      roleType: user.role_type,
+      workspaceId: user.workspace_id
     };
 
     // 生成JWT令牌
@@ -89,7 +89,9 @@ export class AuthUtils {
       username: user.username,
       email: user.email,
       phone: user.phone,
-      role: user.role,
+      roleType: user.role_type,
+      roleName: user.role_name,
+      isCustomRole: user.is_custom_role,
       status: user.status,
       workspace: {
         id: user.workspace_id,

@@ -77,7 +77,9 @@ export async function POST(request: NextRequest) {
     return await db.transaction(async (connection) => {
       // 初始化变量
       let workspaceId: number | null = null;
-      let roleValue = "user"; // 默认角色字符串值
+      let roleType = "user"; // 默认角色类型
+      let roleName = "普通用户"; // 默认角色名称
+      let isCustomRole = false; // 默认不是自定义角色
       let invitationId: number | null = null;
       let returnWorkspaceName = workspaceName || '';
       let isInviteFlow = Boolean(inviteToken && inviteToken.trim() !== '');
@@ -92,7 +94,10 @@ export async function POST(request: NextRequest) {
               i.id, 
               i.token, 
               i.workspace_id, 
-              i.role, 
+              i.role,
+              i.role_type,
+              i.role_name,
+              i.is_custom_role, 
               w.name as workspace_name
             FROM workspace_invitations i
             JOIN workspaces w ON i.workspace_id = w.id
@@ -115,13 +120,28 @@ export async function POST(request: NextRequest) {
           // 使用更可靠的字段提取方式
           invitationId = Number(rawInvitation.id || rawInvitation.ID || 0);
           workspaceId = Number(rawInvitation.workspace_id || rawInvitation.workspaceId || rawInvitation.WORKSPACE_ID || 0);
-          roleValue = String(rawInvitation.role || 'user');
+          
+          // 获取角色信息
+          if (rawInvitation.role_type !== undefined) {
+            // 使用新角色系统
+            roleType = String(rawInvitation.role_type || 'user');
+            roleName = String(rawInvitation.role_name || '普通用户');
+            isCustomRole = Boolean(rawInvitation.is_custom_role || false);
+          } else {
+            // 兼容旧角色系统
+            roleType = String(rawInvitation.role || 'user');
+            roleName = roleType === 'admin' ? '管理员' : '普通用户';
+            isCustomRole = false;
+          }
+          
           returnWorkspaceName = String(rawInvitation.workspace_name || rawInvitation.workspaceName || '未命名工作空间');
           
           console.log('从记录中提取的字段:', {
             invitationId,
             workspaceId, 
-            roleValue, 
+            roleType,
+            roleName,
+            isCustomRole,
             returnWorkspaceName
           });
           
@@ -147,7 +167,11 @@ export async function POST(request: NextRequest) {
         // 从插入结果中获取ID
         const resultObj = (result as any)[0];
         workspaceId = resultObj.insertId;
-        roleValue = "admin"; // 普通注册时用户为管理员
+        
+        // 管理员角色
+        roleType = "admin";
+        roleName = "管理员";
+        isCustomRole = false;
 
         if (!workspaceId) {
           throw new Error('创建工作空间失败');
@@ -164,15 +188,17 @@ export async function POST(request: NextRequest) {
       // 创建用户并关联到工作空间
       const userResult = await connection.execute(
         `INSERT INTO system_users 
-         (username, password, email, phone, workspace_id, role, status, created_at) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+         (username, password, email, phone, workspace_id, role_type, role_name, is_custom_role, status, created_at) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           username, 
           hashedPassword, 
           email, 
           phone, 
           workspaceId, 
-          roleValue, 
+          roleType,
+          roleName,
+          isCustomRole, 
           UserStatus.ENABLED,
           new Date()
         ]

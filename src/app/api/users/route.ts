@@ -2,7 +2,7 @@
  * 用户API路由
  * 作者: 阿瑞
  * 功能: 处理用户的增删改查请求
- * 版本: 1.0
+ * 版本: 1.1
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -62,7 +62,9 @@ export async function POST(request: NextRequest) {
       email: body.email,
       phone: body.phone,
       workspace_id: body.workspace_id,
-      role: body.role,
+      role_type: body.role_type || 'user',
+      role_name: body.role_name || '普通用户',
+      is_custom_role: body.is_custom_role || false,
       invited_by: body.invited_by,
       invitation_token: body.invitation_token
     };

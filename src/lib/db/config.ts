@@ -2,7 +2,7 @@
  * 数据库配置模块
  * 作者: 阿瑞
  * 功能: 提供数据库连接配置
- * 版本: 1.0
+ * 版本: 1.1
  */
 
 /**
@@ -26,8 +26,13 @@ export const DbConfig = {
   database: process.env.DB_DATABASE || 'saas_master',
   
   // 连接池配置
-  connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT || '10'),
-  queueLimit: parseInt(process.env.DB_QUEUE_LIMIT || '0'),
+  connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT || '20'),
+  queueLimit: parseInt(process.env.DB_QUEUE_LIMIT || '50'),
+  
+  // 连接超时配置
+  acquireTimeout: parseInt(process.env.DB_ACQUIRE_TIMEOUT || '30000'),
+  waitForConnections: process.env.DB_WAIT_FOR_CONNECTIONS !== 'false',
+  idleTimeout: parseInt(process.env.DB_IDLE_TIMEOUT || '60000'),
   
   // 重试配置
   maxRetries: parseInt(process.env.DB_MAX_RETRIES || '3'),

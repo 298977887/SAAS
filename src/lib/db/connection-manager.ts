@@ -1,8 +1,8 @@
 /**
  * 数据库连接管理器
  * 作者: 阿瑞
- * 功能: 负责创建、维护和关闭数据库连接
- * 版本: 1.1
+ * 功能: 负责创建、维护和关闭系统数据库连接
+ * 版本: 1.3
  */
 
 import mysql, { Pool, PoolOptions, PoolConnection } from 'mysql2/promise';
@@ -10,14 +10,54 @@ import DbConfig from './config';
 import db from './init';
 
 /**
- * 数据库连接池管理类
- * 管理系统内的所有数据库连接
+ * 连接池使用统计接口
+ */
+export interface PoolStats {
+  acquiredConnections: number;
+  totalConnections: number;
+  idleConnections: number;
+  pendingRequests: number;
+  lastUsed: number;
+  healthStatus: 'healthy' | 'degraded' | 'critical';
+  errorCount: number;
+  lastError?: Error;
+  lastErrorTime?: number;
+}
+
+/**
+ * 系统数据库连接池管理类
+ * 管理系统内的所有基础数据库连接
  */
 export class ConnectionManager {
   /**
    * 连接池映射，键为数据库名称，值为连接池
    */
   private static pools: Map<string, Pool> = new Map();
+  
+  /**
+   * 连接池使用统计
+   */
+  private static poolStats: Map<string, PoolStats> = new Map();
+  
+  /**
+   * 连接池最后使用时间，用于清理不活跃的连接池
+   */
+  private static poolLastUsed: Map<string, number> = new Map();
+  
+  /**
+   * 连接池清理间隔定时器
+   */
+  private static cleanupInterval: NodeJS.Timeout | null = null;
+  
+  /**
+   * 健康检查间隔定时器
+   */
+  private static healthCheckInterval: NodeJS.Timeout | null = null;
+  
+  /**
+   * 当前处于高负载状态
+   */
+  private static isHighLoad: boolean = false;
   
   /**
    * 默认连接池选项
@@ -30,7 +70,10 @@ export class ConnectionManager {
     password: DbConfig.password,
     waitForConnections: true,
     connectionLimit: DbConfig.connectionLimit,
-    queueLimit: DbConfig.queueLimit
+    queueLimit: DbConfig.queueLimit,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 10000,
+    idleTimeout: DbConfig.idleTimeout
   };
 
   /**
@@ -45,6 +88,9 @@ export class ConnectionManager {
       
       // 初始化所有系统表
       await db.initializeTables();
+      
+      // 启动健康检查
+      this.startHealthCheck();
       
       console.log('数据库初始化完成！');
     } catch (error) {
@@ -76,200 +122,518 @@ export class ConnectionManager {
     
     // 如果已存在连接池则直接返回
     if (this.pools.has(database)) {
+      // 更新最后使用时间
+      this.poolLastUsed.set(database, Date.now());
       return this.pools.get(database)!;
     }
     
+    // 检查系统负载状态，如果负载高则适当减少连接限制
+    const connectionLimit = this.isHighLoad 
+      ? Math.max(5, Math.floor((options?.connectionLimit || DbConfig.connectionLimit) * 0.7))
+      : (options?.connectionLimit || DbConfig.connectionLimit);
+      
     // 构建连接池选项
     const poolOptions: PoolOptions = {
       ...this.defaultPoolOptions,
       database,
+      connectionLimit,
       ...options
     };
     
     // 创建新的连接池
     const pool = mysql.createPool(poolOptions);
     
-    // 缓存连接池实例
-    this.pools.set(database, pool);
-    
-    return pool;
-  }
-
-  /**
-   * 创建团队数据库连接池
-   * 使用团队自身的数据库连接信息创建连接池
-   * @param teamConfig 团队数据库配置
-   * @returns 数据库连接池
-   */
-  public static createTeamPool(teamConfig: {
-    db_host: string;
-    db_name: string;
-    db_username: string;
-    db_password: string;
-    team_code: string;
-  }): Pool {
-    const { db_host, db_name, db_username, db_password, team_code } = teamConfig;
-    
-    // 检查是否已存在连接池
-    const poolKey = `team_${team_code}`;
-    if (this.pools.has(poolKey)) {
-      return this.pools.get(poolKey)!;
-    }
-    
-    // 创建团队专用连接池
-    const pool = mysql.createPool({
-      host: db_host,
-      database: db_name,
-      user: db_username,
-      password: db_password,
-      waitForConnections: true,
-      connectionLimit: 5, // 团队库连接限制较低
-      queueLimit: 0
+    // 初始化统计信息
+    this.poolStats.set(database, {
+      acquiredConnections: 0,
+      totalConnections: 0,
+      idleConnections: 0,
+      pendingRequests: 0,
+      lastUsed: Date.now(),
+      healthStatus: 'healthy',
+      errorCount: 0
     });
     
     // 缓存连接池实例
-    this.pools.set(poolKey, pool);
+    this.pools.set(database, pool);
+    this.poolLastUsed.set(database, Date.now());
+    
+    // 设置事件监听器进行连接统计
+    this.setupPoolMonitoring(database, pool);
     
     return pool;
   }
 
   /**
-   * 测试数据库连接是否有效
+   * 为连接池设置监控
+   * @param poolKey 连接池键
+   * @param pool 连接池实例
+   */
+  private static setupPoolMonitoring(poolKey: string, pool: Pool): void {
+    const stats = this.poolStats.get(poolKey)!;
+    
+    pool.on('connection', () => {
+      stats.totalConnections++;
+      this.poolStats.set(poolKey, stats);
+    });
+    
+    pool.on('acquire', () => {
+      stats.acquiredConnections++;
+      this.poolStats.set(poolKey, stats);
+    });
+    
+    pool.on('release', () => {
+      stats.acquiredConnections = Math.max(0, stats.acquiredConnections - 1);
+      stats.idleConnections++;
+      this.poolStats.set(poolKey, stats);
+    });
+    
+    pool.on('enqueue', () => {
+      stats.pendingRequests++;
+      this.poolStats.set(poolKey, stats);
+      
+      // 检查是否需要进入高负载模式
+      if (stats.pendingRequests > DbConfig.queueLimit * 0.8) {
+        this.isHighLoad = true;
+      }
+    });
+    
+    // 监听错误事件
+    (pool as any).on('error', (err: Error) => {
+      stats.errorCount++;
+      stats.lastError = err;
+      stats.lastErrorTime = Date.now();
+      
+      if (stats.errorCount > 5) {
+        stats.healthStatus = 'critical';
+      } else if (stats.errorCount > 2) {
+        stats.healthStatus = 'degraded';
+      }
+      
+      this.poolStats.set(poolKey, stats);
+      console.error(`数据库连接池 ${poolKey} 发生错误:`, err);
+    });
+  }
+
+  /**
+   * 启动连接池清理定时器
+   * 定期检查不活跃的连接池并关闭
+   */
+  private static startPoolCleanup(): void {
+    if (this.cleanupInterval === null) {
+      console.log('启动连接池自动清理定时器');
+      this.cleanupInterval = setInterval(() => {
+        this.cleanupUnusedPools();
+      }, 5 * 60 * 1000); // 每5分钟执行一次清理
+    }
+  }
+
+  /**
+   * 启动健康检查定时器
+   * 定期检查连接池的健康状态
+   */
+  private static startHealthCheck(): void {
+    if (this.healthCheckInterval === null) {
+      console.log('启动连接池健康检查定时器');
+      this.healthCheckInterval = setInterval(() => {
+        this.checkPoolsHealth();
+      }, 30 * 1000); // 每30秒检查一次
+    }
+  }
+
+  /**
+   * 检查所有连接池的健康状态
+   */
+  private static async checkPoolsHealth(): Promise<void> {
+    // 恢复负载状态
+    let hasHighLoad = false;
+    
+    for (const [poolKey, pool] of this.pools.entries()) {
+      try {
+        // 获取连接池状态
+        const stats = this.poolStats.get(poolKey) || {
+          acquiredConnections: 0,
+          totalConnections: 0,
+          idleConnections: 0,
+          pendingRequests: 0,
+          lastUsed: Date.now(),
+          healthStatus: 'healthy',
+          errorCount: 0
+        };
+        
+        // 检查连接池是否过载
+        if (stats.pendingRequests > 0 || stats.acquiredConnections > stats.totalConnections * 0.8) {
+          hasHighLoad = true;
+        }
+        
+        // 尝试简单查询测试连接
+        const connection = await pool.getConnection();
+        await connection.query('SELECT 1');
+        connection.release();
+        
+        // 连接成功，重置错误计数
+        if (stats.errorCount > 0) {
+          stats.errorCount = Math.max(0, stats.errorCount - 1);
+          if (stats.errorCount < 3) {
+            stats.healthStatus = 'healthy';
+          }
+        }
+        
+        this.poolStats.set(poolKey, stats);
+      } catch (error) {
+        console.error(`连接池 ${poolKey} 健康检查失败:`, error);
+        
+        // 更新错误统计
+        const stats = this.poolStats.get(poolKey)!;
+        stats.errorCount++;
+        stats.lastError = error as Error;
+        stats.lastErrorTime = Date.now();
+        
+        if (stats.errorCount > 5) {
+          stats.healthStatus = 'critical';
+          // 尝试重新初始化连接池
+          this.recreatePool(poolKey);
+        } else if (stats.errorCount > 2) {
+          stats.healthStatus = 'degraded';
+        }
+        
+        this.poolStats.set(poolKey, stats);
+      }
+    }
+    
+    // 更新系统负载状态
+    this.isHighLoad = hasHighLoad;
+    
+    // 输出健康状态报告
+    if (hasHighLoad) {
+      console.warn('数据库连接池处于高负载状态');
+    }
+  }
+
+  /**
+   * 重新创建问题连接池
+   * @param poolKey 连接池键
+   */
+  private static async recreatePool(poolKey: string): Promise<void> {
+    try {
+      console.log(`尝试重新创建连接池 ${poolKey}`);
+      
+      // 关闭现有连接池
+      const oldPool = this.pools.get(poolKey);
+      if (oldPool) {
+        await oldPool.end();
+      }
+      
+      // 如果是主连接池，通过db实例重新初始化
+      if (poolKey === DbConfig.database) {
+        await db.ensureConnection();
+        return;
+      }
+      
+      // 移除现有连接池记录
+      this.pools.delete(poolKey);
+      this.poolStats.delete(poolKey);
+      this.poolLastUsed.delete(poolKey);
+      
+      // 注：团队连接池的重建由TeamConnectionManager负责，不在此处处理
+    } catch (error) {
+      console.error(`重新创建连接池 ${poolKey} 失败:`, error);
+    }
+  }
+
+  /**
+   * 清理不活跃的连接池
+   * 关闭30分钟未使用的连接池
+   */
+  private static async cleanupUnusedPools(): Promise<void> {
+    console.log('开始清理不活跃的连接池');
+    
+    const now = Date.now();
+    const inactiveTime = 30 * 60 * 1000; // 30分钟未使用视为不活跃
+    
+    for (const [poolKey, lastUsed] of this.poolLastUsed.entries()) {
+      // 跳过主数据库连接池
+      if (poolKey === DbConfig.database) {
+        continue;
+      }
+      
+      // 跳过团队连接池，由TeamConnectionManager管理
+      if (poolKey.startsWith('team_')) {
+        continue;
+      }
+      
+      // 如果连接池超过不活跃时间，则关闭并移除
+      if (now - lastUsed > inactiveTime) {
+        console.log(`清理不活跃连接池: ${poolKey}, 上次使用时间: ${new Date(lastUsed).toLocaleString()}`);
+        
+        try {
+          await this.closePool(poolKey);
+        } catch (error) {
+          console.error(`关闭连接池 ${poolKey} 失败:`, error);
+        }
+      }
+    }
+  }
+
+  /**
+   * 测试数据库连接
    * @param database 数据库名称
-   * @returns 连接是否有效
+   * @returns 连接是否成功
    */
   public static async testConnection(database: string = DbConfig.database): Promise<boolean> {
-    try {
-      // 如果是主数据库，使用Database实例进行测试
-      if (database === DbConfig.database) {
-        return await db.ensureConnection();
-      }
-      
-      const pool = this.getPool(database);
-      const connection = await pool.getConnection();
-      connection.release();
-      return true;
-    } catch (error) {
-      console.error(`测试数据库[${database}]连接失败:`, error);
-      return false;
-    }
-  }
-
-  /**
-   * 测试团队数据库连接是否有效
-   * @param teamConfig 团队数据库配置
-   * @returns 连接是否有效和错误信息
-   */
-  public static async testTeamConnection(teamConfig: {
-    db_host: string;
-    db_name: string;
-    db_username: string;
-    db_password: string;
-  }): Promise<{ success: boolean; message?: string }> {
-    const { db_host, db_name, db_username, db_password } = teamConfig;
+    let testPool: Pool | null = null;
+    let connection: PoolConnection | null = null;
     
     try {
-      // 创建临时连接池进行测试
-      const tempPool = mysql.createPool({
-        host: db_host,
-        database: db_name,
-        user: db_username,
-        password: db_password,
-        waitForConnections: true,
+      // 使用短期连接池进行测试
+      testPool = mysql.createPool({
+        host: DbConfig.host,
+        port: DbConfig.port,
+        user: DbConfig.user,
+        password: DbConfig.password,
+        database,
         connectionLimit: 1,
-        connectTimeout: 5000 // 超时设置为5秒
+        connectTimeout: 5000
       });
       
-      // 尝试获取连接
-      const connection = await tempPool.getConnection();
-      connection.release();
-      
-      // 关闭临时连接池
-      await tempPool.end();
-      
-      return { success: true };
-    } catch (error: any) {
-      console.error('测试团队数据库连接失败:', error);
-      
-      // 根据错误类型返回具体的错误信息
-      if (error.code === 'ER_ACCESS_DENIED_ERROR') {
-        return { success: false, message: '数据库用户名或密码错误' };
-      } else if (error.code === 'ER_DBACCESS_DENIED_ERROR') {
-        return { success: false, message: '没有访问数据库的权限' };
-      } else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNREFUSED') {
-        return { success: false, message: '无法连接到数据库服务器，请检查主机地址' };
-      } else if (error.code === 'ER_BAD_DB_ERROR') {
-        return { success: false, message: '数据库不存在' };
+      // 获取连接并执行简单查询
+      connection = await testPool.getConnection();
+      await connection.query('SELECT 1');
+      return true;
+    } catch (error) {
+      console.error(`测试数据库 ${database} 连接失败:`, error);
+      return false;
+    } finally {
+      // 释放资源
+      if (connection) {
+        connection.release();
       }
-      
-      return { success: false, message: `连接失败: ${error.message}` };
+      if (testPool) {
+        await testPool.end();
+      }
     }
   }
 
   /**
-   * 在事务中执行多个查询操作
+   * 在事务中执行回调函数
    * @param database 数据库名称
    * @param callback 事务回调函数
-   * @returns 事务执行结果
+   * @returns 回调函数返回值
    */
-  public static async transaction<T>(database: string = DbConfig.database, callback: (connection: PoolConnection) => Promise<T>): Promise<T> {
-    // 如果是主数据库，使用Database实例的事务方法
-    if (database === DbConfig.database) {
-      return await db.transaction(callback);
-    }
-    
+  public static async transaction<T>(
+    database: string = DbConfig.database, 
+    callback: (connection: PoolConnection) => Promise<T>,
+    retries: number = DbConfig.maxRetries
+  ): Promise<T> {
     const pool = this.getPool(database);
-    const connection = await pool.getConnection();
+    let connection: PoolConnection | null = null;
+    let attempts = 0;
     
-    try {
-      await connection.beginTransaction();
-      const result = await callback(connection);
-      await connection.commit();
-      return result;
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
+    while (attempts <= retries) {
+      try {
+        // 获取连接
+        connection = await pool.getConnection();
+        
+        // 开始事务
+        await connection.beginTransaction();
+        
+        // 执行回调
+        const result = await callback(connection);
+        
+        // 提交事务
+        await connection.commit();
+        
+        return result;
+      } catch (error: any) {
+        attempts++;
+        
+        // 回滚事务
+        if (connection) {
+          try {
+            await connection.rollback();
+          } catch (rollbackError) {
+            console.error('事务回滚失败:', rollbackError);
+          }
+        }
+        
+        // 检查是否可以重试（针对连接和死锁错误）
+        const retryableError = 
+          error.code === 'PROTOCOL_CONNECTION_LOST' ||
+          error.code === 'ER_LOCK_DEADLOCK' ||
+          error.errno === 1213 || // 死锁错误码
+          error.message.includes('deadlock');
+        
+        if (retryableError && attempts <= retries) {
+          console.warn(`事务执行失败，准备第${attempts}次重试:`, error.message);
+          // 指数退避重试
+          await new Promise(resolve => setTimeout(resolve, DbConfig.retryDelay * Math.pow(2, attempts - 1)));
+          continue;
+        }
+        
+        // 无法重试或重试次数耗尽
+        console.error('事务执行失败:', error);
+        throw error;
+      } finally {
+        // 释放连接
+        if (connection) {
+          connection.release();
+        }
+      }
     }
+    
+    // 这里应该永远不会执行到，但TypeScript需要返回类型
+    throw new Error('事务执行失败: 超出最大重试次数');
   }
 
   /**
-   * 关闭指定数据库的连接池
+   * 关闭指定的连接池
    * @param database 数据库名称
    */
   public static async closePool(database: string): Promise<void> {
     if (this.pools.has(database)) {
       const pool = this.pools.get(database)!;
-      await pool.end();
-      this.pools.delete(database);
+      
+      try {
+        await pool.end();
+        this.pools.delete(database);
+        this.poolLastUsed.delete(database);
+        this.poolStats.delete(database);
+        console.log(`连接池 ${database} 已关闭`);
+      } catch (error) {
+        console.error(`关闭连接池 ${database} 失败:`, error);
+        throw error;
+      }
     }
   }
 
   /**
    * 关闭所有连接池
-   * 应用程序退出前应调用此方法
    */
   public static async closeAllPools(): Promise<void> {
-    // 关闭主数据库连接
-    try {
-      await db.close();
-      console.log(`已关闭主数据库连接池`);
-    } catch (error) {
-      console.error(`关闭主数据库连接池失败:`, error);
+    console.log('关闭所有数据库连接池...');
+    
+    const closePromises: Promise<void>[] = [];
+    
+    for (const [database, pool] of this.pools.entries()) {
+      // 跳过团队连接池，由TeamConnectionManager负责关闭
+      if (database.startsWith('team_')) {
+        continue;
+      }
+      
+      closePromises.push(
+        pool.end()
+          .then(() => console.log(`连接池 ${database} 已关闭`))
+          .catch(error => console.error(`关闭连接池 ${database} 失败:`, error))
+      );
     }
     
-    // 关闭其他连接池
-    for (const [database, pool] of this.pools.entries()) {
-      try {
-        await pool.end();
-        console.log(`已关闭数据库[${database}]连接池`);
-      } catch (error) {
-        console.error(`关闭数据库[${database}]连接池失败:`, error);
+    await Promise.allSettled(closePromises);
+    
+    // 只清理非团队连接池
+    for (const key of [...this.pools.keys()]) {
+      if (!key.startsWith('team_')) {
+        this.pools.delete(key);
+        this.poolLastUsed.delete(key);
+        this.poolStats.delete(key);
       }
     }
     
-    // 清空连接池映射
-    this.pools.clear();
+    // 清除定时器
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
+    
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+      this.healthCheckInterval = null;
+    }
+    
+    console.log('所有系统数据库连接池已关闭');
+  }
+  
+  /**
+   * 获取连接池统计信息
+   * @param poolKey 连接池键名
+   * @returns 连接池统计信息
+   */
+  public static getPoolStats(poolKey?: string): PoolStats | Record<string, PoolStats> {
+    if (poolKey && this.poolStats.has(poolKey)) {
+      return this.poolStats.get(poolKey)!;
+    }
+    
+    // 返回所有连接池统计信息（只返回系统连接池信息）
+    const allStats: Record<string, PoolStats> = {};
+    for (const [key, stats] of this.poolStats.entries()) {
+      // 不包括团队连接池，团队连接池由TeamConnectionManager管理
+      if (!key.startsWith('team_')) {
+        allStats[key] = stats;
+      }
+    }
+    
+    return allStats;
+  }
+  
+  /**
+   * 重置连接池
+   * 用于在负载过高或错误过多时重新创建连接池
+   * @param poolKey 连接池键名
+   */
+  public static async resetPool(poolKey: string): Promise<void> {
+    // 只处理系统连接池
+    if (!poolKey.startsWith('team_')) {
+      await this.recreatePool(poolKey);
+    }
+  }
+
+  /**
+   * 检查连接池是否存在
+   * @param poolKey 连接池键名
+   * @returns 是否存在
+   */
+  public static hasPool(poolKey: string): boolean {
+    return this.pools.has(poolKey);
+  }
+  
+  /**
+   * 获取已存在的连接池并更新最后使用时间
+   * @param poolKey 连接池键名
+   * @returns 连接池
+   */
+  public static getExistingPool(poolKey: string): Pool {
+    if (!this.pools.has(poolKey)) {
+      throw new Error(`连接池[${poolKey}]不存在`);
+    }
+    
+    // 更新最后使用时间
+    this.poolLastUsed.set(poolKey, Date.now());
+    return this.pools.get(poolKey)!;
+  }
+  
+  /**
+   * 检查是否处于高负载模式
+   * @returns 是否高负载
+   */
+  public static isHighLoadMode(): boolean {
+    return this.isHighLoad;
+  }
+  
+  /**
+   * 注册新的连接池
+   * @param poolKey 连接池键名
+   * @param pool 连接池
+   * @param initialStats 初始统计信息
+   */
+  public static registerPool(poolKey: string, pool: Pool, initialStats: PoolStats): void {
+    // 缓存连接池实例
+    this.pools.set(poolKey, pool);
+    this.poolLastUsed.set(poolKey, Date.now());
+    this.poolStats.set(poolKey, initialStats);
+    
+    // 设置事件监听器进行连接统计
+    this.setupPoolMonitoring(poolKey, pool);
+    
+    // 启动连接池清理定时器
+    this.startPoolCleanup();
   }
 } 

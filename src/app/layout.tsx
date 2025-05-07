@@ -8,7 +8,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ThemeProvider from "@/components/ThemeProvider";
-import { Toaster } from 'sonner';
+import { NotificationProvider, NotificationContainer } from '@/components/ui/Notification';
 import BrowserCompatibilityCheck from "@/components/BrowserCompatibilityCheck";
 
 /* 加载Geist字体 */
@@ -64,16 +64,16 @@ export default function RootLayout({
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ThemeProvider>
-          <BrowserCompatibilityCheck />
-          {children}
-          <Toaster 
-            position="top-right" 
-            richColors 
-            closeButton
-            theme="system"
-            visibleToasts={3}
-            duration={5000}
-          />
+          <NotificationProvider>
+            <BrowserCompatibilityCheck />
+            {children}
+            <NotificationContainer position="top-right" />
+            <NotificationContainer position="top-left" />
+            <NotificationContainer position="bottom-right" />
+            <NotificationContainer position="bottom-left" />
+            <NotificationContainer position="top-center" />
+            <NotificationContainer position="bottom-center" />
+          </NotificationProvider>
         </ThemeProvider>
       </body>
     </html>

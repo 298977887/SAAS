@@ -8,8 +8,10 @@
 
 import { useState } from "react";
 import { useThemeMode, useSettingActions } from "@/store/settingStore";
+import { useIsAuthenticated } from "@/store/userStore";
 import { ThemeMode } from "@/types/enum";
 import Link from "next/link";
+import { MdDarkMode, MdLightMode } from "react-icons/md";
 
 /* 首页模块 - 展示毛玻璃UI效果和系统概览 */
 export default function Home() {
@@ -17,6 +19,9 @@ export default function Home() {
   // 使用zustand管理主题状态
   const themeMode = useThemeMode();
   const { toggleThemeMode } = useSettingActions();
+  
+  // 获取用户登录状态
+  const isAuthenticated = useIsAuthenticated();
   
   // 计算当前是否是深色模式
   const isDarkMode = themeMode === ThemeMode.Dark;
@@ -59,20 +64,44 @@ export default function Home() {
               <Link href="/test/ui" className="nav-link">UI组件</Link>
               <a href="#" className="nav-link">关于我们</a>
             </div>
-            <div className="flex items-center space-x-6">
-              {/* 主题切换开关 */}
-              <label className="theme-switch">
-                <input 
-                  type="checkbox" 
-                  checked={isDarkMode} 
-                  onChange={toggleThemeMode} 
-                />
-                <span className="theme-slider">
-                  <span className="sr-only">切换主题</span>
-                </span>
-              </label>
-              <button className={`hover:text-[var(--accent-blue)] transition-colors px-4 ${isDarkMode ? 'text-[var(--text-light)]' : 'text-[var(--text-primary)]'}`}>登录</button>
-              <button className="btn-primary">注册</button>
+            <div className="flex items-center space-x-5">
+              {/* 主题切换按钮 - 使用图标 */}
+              <button 
+                onClick={toggleThemeMode}
+                className="theme-toggle-btn flex items-center justify-center w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-colors"
+                aria-label="切换主题"
+              >
+                {isDarkMode ? (
+                  <MdLightMode className="text-xl text-yellow-300" />
+                ) : (
+                  <MdDarkMode className="text-xl text-indigo-600" />
+                )}
+              </button>
+              
+              {/* 根据登录状态显示不同的按钮 */}
+              {isAuthenticated ? (
+                <Link 
+                  href="/workspace" 
+                  className="nav-btn-primary"
+                >
+                  进入工作空间
+                </Link>
+              ) : (
+                <div className="flex items-center space-x-3">
+                  <Link 
+                    href="/login" 
+                    className="nav-btn-secondary"
+                  >
+                    登录
+                  </Link>
+                  <Link 
+                    href="/register" 
+                    className="nav-btn-primary"
+                  >
+                    注册
+                  </Link>
+                </div>
+              )}
             </div>
           </nav>
         </header>

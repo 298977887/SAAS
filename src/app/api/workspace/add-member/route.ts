@@ -2,12 +2,13 @@
  * 添加工作空间成员API路由
  * 作者: 阿瑞
  * 功能: 将现有用户添加到当前工作空间或创建新用户
- * 版本: 1.1
+ * 版本: 1.2
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { AuthUtils } from '@/lib/auth';
 import db from '@/lib/db';
+import { SystemRoleType } from '@/models/system/types';
 
 /**
  * 添加成员到工作空间
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest) {
   try {
     // 解析请求体
     const body = await req.json();
-    const { username, email, password, phone, createNewUser, role, workspaceId } = body;
+    const { username, email, password, phone, createNewUser, role_type, role_name, is_custom_role, workspaceId } = body;
     
     // 验证参数
     if ((!username && !email) || !workspaceId) {
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
     const currentUser = currentUserRows[0];
     
     // 验证是否是管理员
-    if (currentUser.role !== 'admin') {
+    if (currentUser.role_type !== SystemRoleType.ADMIN) {
       return NextResponse.json({ error: '只有管理员可以添加成员' }, { status: 403 });
     }
     
@@ -104,10 +105,15 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: '该用户已经在当前工作空间中' }, { status: 400 });
       }
       
+      // 确定角色信息
+      const finalRoleType = role_type || SystemRoleType.USER;
+      const finalRoleName = role_name || (finalRoleType === SystemRoleType.ADMIN ? '管理员' : '普通用户');
+      const finalIsCustomRole = is_custom_role || false;
+
       // 更新用户的工作空间ID和角色
       await db.query(
-        'UPDATE system_users SET workspace_id = ?, role = ?, invited_by = ?, updated_at = NOW() WHERE id = ?',
-        [workspaceId, role || 'user', currentUser.id, targetUser.id]
+        'UPDATE system_users SET workspace_id = ?, role_type = ?, role_name = ?, is_custom_role = ?, invited_by = ?, updated_at = NOW() WHERE id = ?',
+        [workspaceId, finalRoleType, finalRoleName, finalIsCustomRole, currentUser.id, targetUser.id]
       );
     } else {
       // 创建新用户
@@ -148,13 +154,20 @@ export async function POST(req: NextRequest) {
       // 加密密码
       const hashedPassword = await AuthUtils.hashPassword(password);
       
+      // 确定角色信息
+      const finalRoleType = role_type || SystemRoleType.USER;
+      const finalRoleName = role_name || (finalRoleType === SystemRoleType.ADMIN ? '管理员' : '普通用户');
+      const finalIsCustomRole = is_custom_role || false;
+      
       // 插入新用户
       const insertId = await db.insert('system_users', {
         username,
         email,
         password: hashedPassword,
         phone, // 使用请求中传入的电话号码
-        role: role || 'user',
+        role_type: finalRoleType,
+        role_name: finalRoleName,
+        is_custom_role: finalIsCustomRole,
         status: 1, // 修改为整数1，表示启用状态
         workspace_id: workspaceId,
         invited_by: currentUser.id,

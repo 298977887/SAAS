@@ -2,7 +2,7 @@
  * 邀请令牌验证API路由
  * 作者: 阿瑞
  * 功能: 验证邀请令牌的有效性并返回相关信息
- * 版本: 1.1
+ * 版本: 1.2
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -52,6 +52,11 @@ export async function GET(request: NextRequest) {
     const invitation = invitations[0];
     console.log('找到有效的邀请令牌:', invitation.id);
     
+    // 检查是否有新的角色字段
+    const hasNewRoleFields = invitation.hasOwnProperty('role_type') && 
+                             invitation.hasOwnProperty('role_name') && 
+                             invitation.hasOwnProperty('is_custom_role');
+    
     // 确保字段名称统一
     const responseData = {
       valid: true,
@@ -60,6 +65,10 @@ export async function GET(request: NextRequest) {
       inviterId: invitation.created_by,
       inviterName: invitation.inviter_name,
       role: invitation.role,
+      // 新角色系统字段
+      role_type: hasNewRoleFields ? invitation.role_type : invitation.role,
+      role_name: hasNewRoleFields ? invitation.role_name : (invitation.role === 'admin' ? '管理员' : '普通用户'),
+      is_custom_role: hasNewRoleFields ? invitation.is_custom_role : false,
       expiresAt: invitation.expires_at,
       // 增加额外的字段格式，保证前端能够正确读取
       workspace_id: invitation.workspace_id,

@@ -2,12 +2,13 @@
  * 工作空间团队列表API路由
  * 作者: 阿瑞
  * 功能: 获取当前工作空间下的所有团队
- * 版本: 1.1
+ * 版本: 1.2
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { AuthUtils } from '@/lib/auth';
 import db from '@/lib/db';
+import { SystemRoleType } from '@/models/system/types';
 
 /**
  * 获取工作空间的团队列表
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest) {
     console.log('API: 授权头信息:', authHeader ? '存在' : '不存在');
     
     let userId = null;
-    let userRole = 'user'; // 默认为普通用户
+    let userRoleType = SystemRoleType.USER; // 默认为普通用户
     
     // 尝试验证授权
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -44,19 +45,19 @@ export async function GET(req: NextRequest) {
         
         // 查询当前用户
         const userRows = await db.query(
-          'SELECT id, role, workspace_id FROM system_users WHERE id = ?',
+          'SELECT id, role_type, workspace_id FROM system_users WHERE id = ?',
           [decoded.id]
         );
         
         if (userRows.length > 0) {
           const user = userRows[0];
-          userRole = user.role;
+          userRoleType = user.role_type;
           
           // 验证用户是否属于该工作空间
           if (user.workspace_id.toString() !== workspaceId) {
             console.log('API: 用户不属于该工作空间');
           } else {
-            console.log('API: 用户验证成功, ID:', userId, '角色:', userRole);
+            console.log('API: 用户验证成功, ID:', userId, '角色:', userRoleType);
           }
         }
       } catch (error) {
@@ -69,7 +70,7 @@ export async function GET(req: NextRequest) {
     let teamRows;
     
     // 如果是管理员用户，获取整个工作空间的团队
-    if (userRole === 'admin' && userId) {
+    if (userRoleType === SystemRoleType.ADMIN && userId) {
       console.log('API: 以管理员身份查询所有团队');
       teamRows = await db.query(
         `SELECT t.id, t.team_code as teamCode, t.name, t.status

@@ -2,11 +2,17 @@
  * 系统用户数据模型
  * 作者: 阿瑞
  * 功能: 提供系统用户数据的CRUD操作
- * 版本: 1.1
+ * 版本: 1.3
  */
 
 import db from '@/lib/db';
-import { ISystemUser, ICreateUserParams, IUpdateUserParams, UserStatus, UserRole } from './types';
+import { 
+  ISystemUser, 
+  ICreateUserParams, 
+  IUpdateUserParams, 
+  UserStatus, 
+  SystemRoleType
+} from './types';
 
 /**
  * 系统用户数据模型类
@@ -138,7 +144,9 @@ export class SystemUserModel {
         email, 
         phone, 
         workspace_id, 
-        role = UserRole.USER, 
+        role_type = SystemRoleType.USER,
+        role_name = '普通用户',
+        is_custom_role = false,
         invited_by = null, 
         invitation_token = null 
       } = params;
@@ -150,7 +158,9 @@ export class SystemUserModel {
         email,
         phone,
         workspace_id,
-        role,
+        role_type,
+        role_name,
+        is_custom_role,
         status: UserStatus.ENABLED,
         invited_by,
         invitation_token,
@@ -176,7 +186,9 @@ export class SystemUserModel {
       if (params.password !== undefined) updateData.password = params.password;
       if (params.email !== undefined) updateData.email = params.email;
       if (params.phone !== undefined) updateData.phone = params.phone;
-      if (params.role !== undefined) updateData.role = params.role;
+      if (params.role_type !== undefined) updateData.role_type = params.role_type;
+      if (params.role_name !== undefined) updateData.role_name = params.role_name;
+      if (params.is_custom_role !== undefined) updateData.is_custom_role = params.is_custom_role;
       if (params.status !== undefined) updateData.status = params.status;
       if (params.last_login_at !== undefined) updateData.last_login_at = params.last_login_at;
       

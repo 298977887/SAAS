@@ -2,7 +2,7 @@
  * 邀请注册模态框
  * 作者: 阿瑞
  * 功能: 生成邀请链接和二维码
- * 版本: 1.0
+ * 版本: 1.1
  */
 
 'use client';
@@ -11,9 +11,10 @@ import React, { useState } from 'react';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import { ThemeMode } from '@/types/enum';
-import { toast } from 'sonner';
+import { useNotification } from '@/components/ui/Notification';
 import { Icon } from '@iconify/react';
 import { QRCodeSVG } from 'qrcode.react';
+import { SystemRoleType } from '@/models/system/types';
 
 /**
  * 邀请模态框属性
@@ -37,31 +38,28 @@ const InviteModal: React.FC<InviteModalProps> = ({
   themeMode
 }) => {
   const isDarkMode = themeMode === ThemeMode.Dark;
+  const notification = useNotification();
   
   // 表单状态
   const [formData, setFormData] = useState({
-    role: 'user',
+    role_type: SystemRoleType.USER,
+    role_name: '普通用户',
+    is_custom_role: false
   });
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [inviteLink, setInviteLink] = useState('');
   
-  /**
-   * 处理表单输入变化
-   */
-  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    setError('');
-  };
   
   /**
    * 重置表单
    */
   const resetForm = () => {
     setFormData({
-      role: 'user',
+      role_type: SystemRoleType.USER,
+      role_name: '普通用户',
+      is_custom_role: false
     });
     setError('');
     setInviteLink('');
@@ -91,7 +89,9 @@ const InviteModal: React.FC<InviteModalProps> = ({
           'Authorization': `Bearer ${accessToken}`
         },
         body: JSON.stringify({
-          role: formData.role,
+          role_type: formData.role_type,
+          role_name: formData.role_name,
+          is_custom_role: formData.is_custom_role,
           workspaceId
         })
       });
@@ -109,12 +109,12 @@ const InviteModal: React.FC<InviteModalProps> = ({
       setInviteLink(inviteUrl);
       
       // 成功提示
-      toast.success('邀请链接已生成');
+      notification.success('邀请链接已生成');
       
     } catch (error: any) {
       console.error('生成邀请链接失败:', error);
       setError(error.message || '生成邀请链接过程中发生错误');
-      toast.error(error.message || '生成邀请链接失败');
+      notification.error(error.message || '生成邀请链接失败');
     } finally {
       setIsSubmitting(false);
     }
@@ -125,10 +125,10 @@ const InviteModal: React.FC<InviteModalProps> = ({
    */
   const handleCopyLink = () => {
     navigator.clipboard.writeText(inviteLink).then(() => {
-      toast.success('邀请链接已复制到剪贴板');
+      notification.success('邀请链接已复制到剪贴板');
     }).catch(err => {
       console.error('复制失败:', err);
-      toast.error('复制失败');
+      notification.error('复制失败');
     });
   };
   
@@ -161,24 +161,59 @@ const InviteModal: React.FC<InviteModalProps> = ({
       
       <div className="space-y-5">
         <div className="transition-all duration-200">
-          <label htmlFor="role" className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} mb-2 flex items-center`}>
+          <label htmlFor="role_type" className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} mb-2 flex items-center`}>
             设置被邀请人角色
             <Icon icon="lucide:shield" className="w-4 h-4 ml-1 text-gray-400" />
           </label>
           <div className="relative">
             <select
-              id="role"
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
+              id="role_type"
+              name="role_type"
+              value={formData.role_type}
+              onChange={(e) => {
+                const roleType = e.target.value as SystemRoleType;
+                let roleName = '普通用户';
+                
+                // 根据选择的角色类型设置对应的角色名称
+                switch (roleType) {
+                  case SystemRoleType.ADMIN:
+                    roleName = '管理员';
+                    break;
+                  case SystemRoleType.BOSS:
+                    roleName = '老板';
+                    break;
+                  case SystemRoleType.FINANCE:
+                    roleName = '财务';
+                    break;
+                  case SystemRoleType.OPERATION:
+                    roleName = '运营';
+                    break;
+                  case SystemRoleType.CUSTOMER:
+                    roleName = '客服';
+                    break;
+                  default:
+                    roleName = '普通用户';
+                }
+                
+                setFormData(prev => ({ 
+                  ...prev, 
+                  role_type: roleType,
+                  role_name: roleName
+                }));
+                setError('');
+              }}
               className={`w-full px-3 py-2 pl-9 border rounded-md appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 isDarkMode
                   ? 'bg-gray-800/40 text-white border-gray-700'
                   : 'bg-white text-gray-900 border-gray-300'
               }`}
             >
-              <option value="user">普通用户</option>
-              <option value="admin">管理员</option>
+              <option value={SystemRoleType.USER}>普通用户</option>
+              <option value={SystemRoleType.ADMIN}>管理员</option>
+              <option value={SystemRoleType.BOSS}>老板</option>
+              <option value={SystemRoleType.FINANCE}>财务</option>
+              <option value={SystemRoleType.OPERATION}>运营</option>
+              <option value={SystemRoleType.CUSTOMER}>客服</option>
             </select>
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Icon icon="lucide:users" className="w-4 h-4 text-gray-400" />
@@ -188,7 +223,7 @@ const InviteModal: React.FC<InviteModalProps> = ({
             </div>
           </div>
           <p className={`mt-1 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-            管理员可以添加/移除成员，普通用户只能查看
+            选择合适的角色分配给被邀请用户，不同角色拥有不同权限
           </p>
         </div>
         

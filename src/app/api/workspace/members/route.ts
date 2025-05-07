@@ -2,7 +2,7 @@
  * 工作空间成员列表API路由
  * 作者: 阿瑞
  * 功能: 获取当前工作空间下的所有成员
- * 版本: 1.1
+ * 版本: 1.2
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -56,13 +56,15 @@ export async function GET(req: NextRequest) {
         username, 
         email, 
         phone, 
-        role, 
+        role_type as roleType, 
+        role_name as roleName,
+        is_custom_role as isCustomRole,
         status, 
         last_login_at as lastLoginAt, 
         created_at as createdAt
        FROM system_users 
        WHERE workspace_id = ?
-       ORDER BY role DESC, username ASC`,
+       ORDER BY role_type DESC, username ASC`,
       [workspaceId]
     );
     

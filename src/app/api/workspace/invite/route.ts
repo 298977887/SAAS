@@ -2,13 +2,14 @@
  * 邀请注册API路由
  * 作者: 阿瑞
  * 功能: 生成邀请链接和令牌
- * 版本: 2.0
+ * 版本: 2.1
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { AuthUtils } from '@/lib/auth';
 import db from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
+import { SystemRoleType } from '@/models/system/types';
 
 /**
  * 生成邀请链接和令牌
@@ -19,9 +20,9 @@ export async function POST(req: NextRequest) {
     
     // 解析请求体
     const body = await req.json();
-    const { role, workspaceId } = body;
+    const { role_type, role_name, is_custom_role, workspaceId } = body;
     
-    console.log('API: 请求参数:', { role, workspaceId });
+    console.log('API: 请求参数:', { role_type, role_name, is_custom_role, workspaceId });
     
     // 验证参数
     if (!workspaceId) {
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
     
     // 查询当前用户
     const currentUserRows = await db.query(
-      'SELECT id, username, email, role, workspace_id FROM system_users WHERE id = ?',
+      'SELECT id, username, email, role_type, role_name, workspace_id FROM system_users WHERE id = ?',
       [decoded.id]
     );
     
@@ -63,10 +64,10 @@ export async function POST(req: NextRequest) {
     }
     
     const currentUser = currentUserRows[0];
-    console.log('API: 当前用户:', { id: currentUser.id, role: currentUser.role });
+    console.log('API: 当前用户:', { id: currentUser.id, role_type: currentUser.role_type });
     
     // 验证是否是管理员
-    if (currentUser.role !== 'admin') {
+    if (currentUser.role_type !== SystemRoleType.ADMIN) {
       console.log('API: 用户不是管理员');
       return NextResponse.json({ error: '只有管理员可以生成邀请链接' }, { status: 403 });
     }
@@ -95,15 +96,39 @@ export async function POST(req: NextRequest) {
     const invitationToken = uuidv4();
     console.log('API: 生成邀请令牌:', invitationToken.substring(0, 8) + '...');
     
+    // 确定角色信息
+    const finalRoleType = role_type || SystemRoleType.USER;
+    const finalRoleName = role_name || (finalRoleType === SystemRoleType.ADMIN ? '管理员' : '普通用户');
+    const finalIsCustomRole = is_custom_role || false;
+    
+    // 检查表是否需要更新结构
+    try {
+      await db.query('SELECT role_type FROM workspace_invitations LIMIT 1');
+    } catch (err) {
+      // 如果字段不存在，添加新的字段
+      if ((err as any).code === 'ER_BAD_FIELD_ERROR') {
+        console.log('API: 更新邀请表结构以支持新的角色系统');
+        await db.query(`
+          ALTER TABLE workspace_invitations
+          ADD COLUMN role_type VARCHAR(30) NOT NULL DEFAULT 'user' AFTER role,
+          ADD COLUMN role_name VARCHAR(50) NOT NULL DEFAULT '普通用户' AFTER role_type,
+          ADD COLUMN is_custom_role TINYINT(1) NOT NULL DEFAULT 0 AFTER role_name
+        `);
+      }
+    }
+    
     // 将邀请数据存入数据库
     await db.query(
       `INSERT INTO workspace_invitations 
-       (token, workspace_id, role, created_by, expires_at, created_at) 
-       VALUES (?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 7 DAY), NOW())`,
+       (token, workspace_id, role, role_type, role_name, is_custom_role, created_by, expires_at, created_at) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 7 DAY), NOW())`,
       [
         invitationToken,
         workspaceId,
-        role || 'user',
+        finalRoleType, // 保持兼容
+        finalRoleType,
+        finalRoleName,
+        finalIsCustomRole,
         currentUser.id
       ]
     ).catch(err => {
@@ -115,7 +140,10 @@ export async function POST(req: NextRequest) {
             id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
             token VARCHAR(100) NOT NULL UNIQUE,
             workspace_id INT NOT NULL,
-            role VARCHAR(20) NOT NULL DEFAULT 'user',
+            role VARCHAR(30) NOT NULL DEFAULT 'user',
+            role_type VARCHAR(30) NOT NULL DEFAULT 'user',
+            role_name VARCHAR(50) NOT NULL DEFAULT '普通用户',
+            is_custom_role TINYINT(1) NOT NULL DEFAULT 0,
             created_by INT NOT NULL,
             used_by INT NULL DEFAULT NULL,
             used_at DATETIME NULL DEFAULT NULL,
@@ -129,12 +157,15 @@ export async function POST(req: NextRequest) {
         `).then(() => {
           return db.query(
             `INSERT INTO workspace_invitations 
-             (token, workspace_id, role, created_by, expires_at, created_at) 
-             VALUES (?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 7 DAY), NOW())`,
+             (token, workspace_id, role, role_type, role_name, is_custom_role, created_by, expires_at, created_at) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 7 DAY), NOW())`,
             [
               invitationToken,
               workspaceId,
-              role || 'user',
+              finalRoleType, // 保持兼容
+              finalRoleType,
+              finalRoleName,
+              finalIsCustomRole,
               currentUser.id
             ]
           );
