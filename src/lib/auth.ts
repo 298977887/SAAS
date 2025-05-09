@@ -9,7 +9,7 @@ import { NextRequest } from 'next/server';
 import { ISystemUser } from '@/models/system/types';
 import { IUserInfo } from '@/store/userStore';
 import { JWT_SECRET } from '@/config/constants';
-import jwt from 'jsonwebtoken';
+import * as jose from 'jose';
 
 /**
  * JWT密钥配置
@@ -34,7 +34,7 @@ export interface User {
  * @param user 用户信息
  * @returns JWT令牌
  */
-export function createToken(user: ISystemUser): string {
+export async function createToken(user: ISystemUser): Promise<string> {
   const userInfo: IUserInfo = {
     id: user.id,
     username: user.username,
@@ -55,14 +55,15 @@ export function createToken(user: ISystemUser): string {
   };
   
   try {
-    // 生成JWT令牌
-    const token = jwt.sign(userInfo, JWT_SECRET, {
-      expiresIn: JWT_EXPIRES_IN
-    });
+    // 使用jose库生成JWT令牌
+    const token = await new jose.SignJWT(userInfo as Record<string, any>)
+      .setProtectedHeader({ alg: 'HS256' })
+      .setExpirationTime(JWT_EXPIRES_IN)
+      .sign(new TextEncoder().encode(JWT_SECRET));
     
     return token;
-  } catch (error) {
-    console.error('创建令牌失败:', error);
+  } catch (e) {
+    console.error('创建令牌失败:', e);
     throw new Error('创建令牌失败');
   }
 }
@@ -70,11 +71,14 @@ export function createToken(user: ISystemUser): string {
 /**
  * 验证JWT令牌
  */
-export const verifyToken = (token: string): User | null => {
+export const verifyToken = async (token: string): Promise<User | null> => {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    return decoded as User;
-  } catch (error) {
+    const { payload } = await jose.jwtVerify(
+      token,
+      new TextEncoder().encode(JWT_SECRET)
+    );
+    return payload as unknown as User;
+  } catch {
     return null;
   }
 };
@@ -98,7 +102,33 @@ export const getUserFromAuthHeader = async (req: NextRequest): Promise<User | nu
   const token = getTokenFromHeader(req);
   if (!token) return null;
   
-  return verifyToken(token);
+  return await verifyToken(token);
+};
+
+/**
+ * 清理用户信息，移除敏感字段
+ * @param user 用户信息对象
+ * @returns 清理后的用户信息
+ */
+export const sanitizeUser = (user: ISystemUser): IUserInfo => {
+  return {
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    role: user.role || 'user',
+    isAdmin: user.role === 'admin',
+    teamId: user.currentTeamId,
+    phone: user.phone || '',
+    roleType: user.role_type || 'user',
+    roleName: user.role_name || '用户',
+    isCustomRole: user.is_custom_role || false,
+    status: user.status || 1,
+    workspace: {
+      id: user.workspace_id || 0,
+      name: '',
+      status: 1
+    }
+  };
 };
 
 /**
@@ -108,5 +138,6 @@ export const AuthUtils = {
   createToken,
   verifyToken,
   getTokenFromHeader,
-  getUserFromAuthHeader
+  getUserFromAuthHeader,
+  sanitizeUser
 }; 

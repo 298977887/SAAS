@@ -11,6 +11,14 @@ import { WorkspaceModel } from '@/models/system/WorkspaceModel';
 import { AuthUtils } from '@/lib/auth';
 
 /**
+ * 错误接口定义
+ */
+interface ApiError extends Error {
+  message: string;
+  status?: number;
+}
+
+/**
  * 获取当前用户信息
  */
 export async function GET(req: NextRequest) {
@@ -29,7 +37,14 @@ export async function GET(req: NextRequest) {
     const token = authHeader.split(' ')[1];
     
     // 验证令牌
-    const decoded = AuthUtils.verifyToken(token);
+    const decoded = await AuthUtils.verifyToken(token);
+    
+    if (!decoded) {
+      return NextResponse.json(
+        { error: '无效的访问令牌' },
+        { status: 401 }
+      );
+    }
     
     // 获取用户详细信息
     const user = await SystemUserModel.getById(decoded.id);
@@ -58,11 +73,12 @@ export async function GET(req: NextRequest) {
       message: '获取用户信息成功',
       user: userInfo
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('获取用户信息失败:', error);
     
     // 判断错误类型
-    if (error.message === '无效的访问令牌') {
+    const apiError = error as ApiError;
+    if (apiError.message === '无效的访问令牌') {
       return NextResponse.json(
         { error: '无效的访问令牌' },
         { status: 401 }

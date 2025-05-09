@@ -40,14 +40,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         message: '注销成功'
       });
-    } catch (error) {
+    } catch {
       // 令牌无效也视为成功注销
       return NextResponse.json({
         message: '注销成功'
       });
     }
-  } catch (error: Error | unknown) {
-    console.error('注销处理失败:', error);
+  } catch (e: unknown) {
+    console.error('注销处理失败:', e);
     
     // 返回错误响应
     return NextResponse.json(
