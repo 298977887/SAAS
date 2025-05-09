@@ -8,13 +8,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { TeamModel } from "@/models/system/TeamModel";
 import { TeamDatabase } from "@/lib/db/team/init-team";
-import { AuthUtils } from "@/lib/auth";
+import { AuthUtils, User } from "@/lib/auth";
 import mysql from 'mysql2/promise';
 import DbConfig from "@/lib/db/config";
 
 /**
  * POST 处理初始化团队数据库请求
  */
+
 export async function POST(
   req: NextRequest,
   context: { params: { teamCode: string } }
@@ -61,9 +62,9 @@ export async function POST(
     }
     
     // 验证令牌
-    let user;
+    let user: User | null;
     try {
-      user = AuthUtils.verifyToken(token);
+      user = await AuthUtils.verifyToken(token);
       // 验证用户信息的完整性
       if (!user || !user.id) {
         console.error('用户信息不完整:', user);
@@ -187,10 +188,11 @@ export async function POST(
       await teamDatabase.initialize();
       console.log(`团队数据库 ${team.db_name} 初始化成功`);
       
-    } catch (dbError: any) {
-      console.error("数据库操作失败:", dbError);
+    } catch (dbError: unknown) {
+      const err = dbError as Error;
+      console.error("数据库操作失败:", err);
       return NextResponse.json(
-        { error: `数据库操作失败: ${dbError.message}` },
+        { error: `数据库操作失败: ${err.message}` },
         { status: 500 }
       );
     }
@@ -201,10 +203,11 @@ export async function POST(
       message: `团队 ${team.name} 数据库初始化成功`
     });
     
-  } catch (error: any) {
-    console.error("初始化团队数据库出错:", error);
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error("初始化团队数据库出错:", err);
     return NextResponse.json(
-      { error: error.message || "初始化团队数据库失败" },
+      { error: err.message || "初始化团队数据库失败" },
       { status: 500 }
     );
   }

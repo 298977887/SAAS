@@ -1,28 +1,36 @@
 /**
- * 团队API路由
+ * 团队管理API路由
  * 作者: 阿瑞
- * 功能: 处理团队相关API请求
+ * 功能: 处理团队的创建和查询
  * 版本: 1.0.0
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { TeamModel } from "@/models/system/TeamModel";
 import { UserTeamRelationModel } from "@/models/system/UserTeamRelationModel";
-import { ICreateTeamParams } from "@/models/system/types";
+import { AuthUtils, User } from "@/lib/auth";
 import DbConfig from "@/lib/db/config";
-import { AuthUtils } from "@/lib/auth";
+import { ICreateTeamParams } from "@/models/system/types/Team";
+import { TeamRole } from "@/models/system/types/UserTeamRelation";
+
+/**
+ * 扩展User接口添加workspaceId
+ */
+interface UserWithWorkspace extends User {
+  workspaceId?: number;
+}
 
 /**
  * 生成安全的随机密码
- * 包含小写字母、大写字母、数字和特殊字符
- * @param length 密码长度
+ * @param length 密码长度，默认为12
  * @returns 生成的随机密码
  */
 function generateSecurePassword(length = 12): string {
+  // 定义字符集
   const lowercase = 'abcdefghijklmnopqrstuvwxyz';
   const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const numbers = '0123456789';
-  const special = '!@#$%^&*()-_=+';
+  const special = '!@#$%^&*()_-+=<>?';
   
   const allChars = lowercase + uppercase + numbers + special;
   
@@ -40,6 +48,15 @@ function generateSecurePassword(length = 12): string {
   
   // 打乱字符顺序
   return password.split('').sort(() => 0.5 - Math.random()).join('');
+}
+
+/**
+ * 错误类型定义
+ */
+interface ApiError extends Error {
+  message: string;
+  code?: string;
+  status?: number;
 }
 
 /**
@@ -101,7 +118,7 @@ export async function POST(req: NextRequest) {
     // 尝试通过令牌获取用户信息
     if (token) {
       try {
-        const user = AuthUtils.verifyToken(token);
+        const user = await AuthUtils.verifyToken(token) as UserWithWorkspace;
         // 验证用户信息的完整性
         if (user && user.id && user.workspaceId) {
           userId = Number(user.id);
@@ -201,7 +218,7 @@ export async function POST(req: NextRequest) {
     await UserTeamRelationModel.create({
       user_id: userId,
       team_id: teamId,
-      role: 'owner' as any // 临时类型转换，后续应更新类型定义
+      role: TeamRole.OWNER
     });
     console.log('用户团队关系创建成功');
     
@@ -215,10 +232,11 @@ export async function POST(req: NextRequest) {
       }
     }, { status: 201 });
     
-  } catch (error: any) {
-    console.error("创建团队出错:", error);
+  } catch (error: unknown) {
+    const err = error as ApiError;
+    console.error("创建团队出错:", err);
     return NextResponse.json(
-      { error: error.message || "创建团队失败" },
+      { error: err.message || "创建团队失败" },
       { status: 500 }
     );
   }

@@ -40,24 +40,27 @@ export async function GET(req: NextRequest) {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       try {
         const token = authHeader.split(' ')[1];
-        const decoded = AuthUtils.verifyToken(token);
-        userId = decoded.id;
+        const decoded = await AuthUtils.verifyToken(token);
         
-        // 查询当前用户
-        const userRows = await db.query(
-          'SELECT id, role_type, workspace_id FROM system_users WHERE id = ?',
-          [decoded.id]
-        );
-        
-        if (userRows.length > 0) {
-          const user = userRows[0];
-          userRoleType = user.role_type;
+        if (decoded && decoded.id) {
+          userId = decoded.id;
           
-          // 验证用户是否属于该工作空间
-          if (user.workspace_id.toString() !== workspaceId) {
-            console.log('API: 用户不属于该工作空间');
-          } else {
-            console.log('API: 用户验证成功, ID:', userId, '角色:', userRoleType);
+          // 查询当前用户
+          const userRows = await db.query(
+            'SELECT id, role_type, workspace_id FROM system_users WHERE id = ?',
+            [decoded.id]
+          );
+          
+          if (userRows.length > 0) {
+            const user = userRows[0];
+            userRoleType = user.role_type;
+            
+            // 验证用户是否属于该工作空间
+            if (user.workspace_id.toString() !== workspaceId) {
+              console.log('API: 用户不属于该工作空间');
+            } else {
+              console.log('API: 用户验证成功, ID:', userId, '角色:', userRoleType);
+            }
           }
         }
       } catch (error) {
@@ -109,12 +112,13 @@ export async function GET(req: NextRequest) {
       teams: teamRows
     });
     
-  } catch (error: any) {
-    console.error('API: 获取团队列表失败:', error);
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error('API: 获取团队列表失败:', err);
     
     // 其他错误
     return NextResponse.json(
-      { error: '获取团队列表失败: ' + error.message },
+      { error: '获取团队列表失败: ' + err.message },
       { status: 500 }
     );
   }
