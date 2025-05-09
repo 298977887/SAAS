@@ -1,104 +1,112 @@
 /**
- * 认证工具类
+ * 用户认证工具模块
  * 作者: 阿瑞
- * 功能: 提供密码加密验证和JWT生成功能
- * 版本: 1.2
+ * 功能: 提供用户认证相关的工具函数
+ * 版本: 1.0.0
  */
 
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import { NextRequest } from 'next/server';
 import { ISystemUser } from '@/models/system/types';
 import { IUserInfo } from '@/store/userStore';
+import { JWT_SECRET } from '@/config/constants';
+import jwt from 'jsonwebtoken';
 
 /**
  * JWT密钥配置
  * 生产环境中应从环境变量中获取
  */
-const JWT_SECRET = process.env.JWT_SECRET || 'saas-app-secret-key-for-development';
 const JWT_EXPIRES_IN = '24h';
 
 /**
- * 认证工具类
- * 提供密码加密验证和JWT生成功能
+ * 用户信息接口
  */
-export class AuthUtils {
-  /**
-   * 生成密码哈希
-   * @param password 明文密码
-   * @returns 加密后的哈希密码
-   */
-  public static async hashPassword(password: string): Promise<string> {
-    // 使用bcrypt生成哈希，密码复杂度为10
-    const salt = await bcrypt.genSalt(10);
-    return bcrypt.hash(password, salt);
-  }
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  role?: string;
+  isAdmin?: boolean;
+  teamId?: number;
+}
 
-  /**
-   * 验证密码
-   * @param plainPassword 明文密码
-   * @param hashedPassword 哈希密码
-   * @returns 是否匹配
-   */
-  public static async verifyPassword(plainPassword: string, hashedPassword: string): Promise<boolean> {
-    // 使用bcrypt验证密码
-    return bcrypt.compare(plainPassword, hashedPassword);
-  }
-
-  /**
-   * 生成JWT令牌
-   * @param user 用户信息
-   * @returns 生成的JWT令牌
-   */
-  public static generateToken(user: ISystemUser): string {
-    // 从用户信息中提取JWT负载数据
-    const payload = {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      roleType: user.role_type,
-      workspaceId: user.workspace_id
-    };
-
-    // 生成JWT令牌
-    return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-  }
-
-  /**
-   * 验证JWT令牌
-   * @param token JWT令牌
-   * @returns 解码后的用户信息
-   */
-  public static verifyToken(token: string): any {
-    try {
-      // 验证并解码JWT令牌
-      return jwt.verify(token, JWT_SECRET);
-    } catch (error) {
-      throw new Error('无效的访问令牌');
+/**
+ * 创建JWT令牌
+ * @param user 用户信息
+ * @returns JWT令牌
+ */
+export function createToken(user: ISystemUser): string {
+  const userInfo: IUserInfo = {
+    id: user.id,
+    username: user.username,
+    email: user.email,
+    role: user.role || 'user',
+    isAdmin: user.role === 'admin',
+    teamId: user.currentTeamId,
+    phone: user.phone || '',
+    roleType: user.role_type || 'user',
+    roleName: user.role_name || '用户',
+    isCustomRole: user.is_custom_role || false,
+    status: user.status || 1,
+    workspace: {
+      id: user.workspace_id || 0,
+      name: '',
+      status: 1
     }
+  };
+  
+  try {
+    // 生成JWT令牌
+    const token = jwt.sign(userInfo, JWT_SECRET, {
+      expiresIn: JWT_EXPIRES_IN
+    });
+    
+    return token;
+  } catch (error) {
+    console.error('创建令牌失败:', error);
+    throw new Error('创建令牌失败');
   }
+}
 
-  /**
-   * 提取验证后的用户信息
-   * 去除敏感字段后返回
-   * @param user 用户完整信息
-   * @returns 清理后的用户信息
-   */
-  public static sanitizeUser(user: ISystemUser): IUserInfo {
-    return {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      phone: user.phone,
-      roleType: user.role_type,
-      roleName: user.role_name,
-      isCustomRole: user.is_custom_role,
-      status: user.status,
-      workspace: {
-        id: user.workspace_id,
-        name: '', // 需要从工作空间数据中获取
-        status: 1 // 默认为启用状态
-      },
-      lastLoginAt: user.last_login_at ? new Date(user.last_login_at).toISOString() : undefined
-    };
+/**
+ * 验证JWT令牌
+ */
+export const verifyToken = (token: string): User | null => {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    return decoded as User;
+  } catch (error) {
+    return null;
   }
-} 
+};
+
+/**
+ * 从请求头获取Token
+ */
+export const getTokenFromHeader = (req: NextRequest): string | null => {
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+  
+  return authHeader.split(' ')[1];
+};
+
+/**
+ * 从请求头获取用户信息
+ */
+export const getUserFromAuthHeader = async (req: NextRequest): Promise<User | null> => {
+  const token = getTokenFromHeader(req);
+  if (!token) return null;
+  
+  return verifyToken(token);
+};
+
+/**
+ * 导出认证工具集
+ */
+export const AuthUtils = {
+  createToken,
+  verifyToken,
+  getTokenFromHeader,
+  getUserFromAuthHeader
+}; 

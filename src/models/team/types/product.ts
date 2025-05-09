@@ -5,6 +5,9 @@
  * 版本: 1.0.0
  */
 
+import { Brand } from './brand';
+import { Supplier } from './supplier';
+
 /**
  * 产品成本接口
  */
@@ -20,7 +23,9 @@ export interface ProductCost {
 export interface Product {
   id: number;
   supplierId?: number;
+  supplier?: Supplier;
   brandId?: number;
+  brand?: Brand;
   categoryId?: number;
   name: string;
   description?: string;
@@ -29,7 +34,11 @@ export interface Product {
   sku?: string;
   aliases?: string[];
   level?: string;
-  cost?: ProductCost;
+  cost?: {
+    costPrice?: number;
+    packagingFee?: number;
+    shippingFee?: number;
+  };
   price: number;
   stock: number;
   logisticsStatus?: string;
@@ -58,12 +67,13 @@ export interface CreateProductParams {
   sku?: string;
   aliases?: string[];
   level?: string;
-  cost?: ProductCost;
+  cost?: {
+    costPrice?: number;
+    packagingFee?: number;
+    shippingFee?: number;
+  };
   price: number;
   stock?: number;
-  logisticsStatus?: string;
-  logisticsDetails?: string;
-  trackingNumber?: string;
 }
 
 /**
@@ -71,22 +81,23 @@ export interface CreateProductParams {
  */
 export interface UpdateProductParams {
   id: number;
-  supplierId?: number | null;
-  brandId?: number | null;
-  categoryId?: number | null;
+  supplierId?: number;
+  brandId?: number;
+  categoryId?: number;
   name?: string;
-  description?: string | null;
-  code?: string | null;
-  image?: string | null;
-  sku?: string | null;
-  aliases?: string[] | null;
-  level?: string | null;
-  cost?: ProductCost | null;
+  description?: string;
+  code?: string;
+  image?: string;
+  sku?: string;
+  aliases?: string[];
+  level?: string;
+  cost?: {
+    costPrice?: number;
+    packagingFee?: number;
+    shippingFee?: number;
+  };
   price?: number;
   stock?: number;
-  logisticsStatus?: string | null;
-  logisticsDetails?: string | null;
-  trackingNumber?: string | null;
 }
 
 /**
@@ -97,10 +108,6 @@ export interface QueryProductsParams {
   supplierId?: number;
   brandId?: number;
   categoryId?: number;
-  level?: string;
-  minPrice?: number;
-  maxPrice?: number;
-  hasStock?: boolean;
   page?: number;
   pageSize?: number;
 }
@@ -111,7 +118,4 @@ export interface QueryProductsParams {
 export interface ProductsResponse {
   total: number;
   products: Product[];
-  filters?: {
-    levels?: string[];
-  };
 } 

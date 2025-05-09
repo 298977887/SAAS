@@ -22,7 +22,11 @@ export async function initDatabase(): Promise<void> {
   try {
     // 初始化系统数据库
     await ConnectionManager.initialize();
-    console.log('系统数据库初始化成功');
+    
+    // 只在开发环境输出日志
+    if (process.env.NODE_ENV === 'development') {
+      console.log('系统数据库初始化成功');
+    }
     
     // 初始化团队连接管理器
     TeamConnectionManager.initialize();
@@ -41,7 +45,10 @@ export async function initDatabase(): Promise<void> {
     // 配置查询监控
     queryMonitor.setSlowQueryThreshold(500); // 慢查询阈值500ms
     
-    console.log('数据库性能优化模块已启动');
+    // 只在开发环境输出日志
+    if (process.env.NODE_ENV === 'development') {
+      console.log('数据库性能优化模块已启动');
+    }
   } catch (error) {
     console.error('数据库初始化失败:', error);
     throw error;

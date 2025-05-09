@@ -9,10 +9,10 @@
  * 支付平台状态枚举
  */
 export enum PaymentPlatformStatus {
-  DISABLED = 0, // 停用
-  ACTIVE = 1,   // 正常
-  STANDBY = 2,  // 备用
-  OTHER = 3     // 其他
+  DISABLED = 0,  // 停用
+  NORMAL = 1,    // 正常
+  BACKUP = 2,    // 备用
+  OTHER = 3      // 其他
 }
 
 /**
@@ -32,8 +32,8 @@ export interface PaymentPlatform {
  * 创建支付平台请求参数
  */
 export interface CreatePaymentPlatformParams {
-  name: string;
   order: number;
+  name: string;
   description?: string;
   status?: PaymentPlatformStatus;
 }
@@ -43,8 +43,8 @@ export interface CreatePaymentPlatformParams {
  */
 export interface UpdatePaymentPlatformParams {
   id: number;
-  name?: string;
   order?: number;
+  name?: string;
   description?: string;
   status?: PaymentPlatformStatus;
 }

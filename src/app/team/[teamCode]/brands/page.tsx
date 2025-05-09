@@ -2,7 +2,7 @@
  * 品牌管理页面
  * 作者: 阿瑞
  * 功能: 提供品牌数据的展示和管理功能
- * 版本: 1.0.0
+ * 版本: 1.1.0
  */
 
 'use client';
@@ -11,7 +11,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { useTeam } from '@/hooks/useTeam';
 import { useAccessToken } from '@/store/userStore';
-import { MdAdd, MdSearch, MdEdit, MdDelete, MdRefresh } from 'react-icons/md';
+import { useThemeMode } from '@/store/settingStore';
+import { ThemeMode } from '@/types/enum';
+import { MdAdd, MdSearch, MdEdit, MdDelete, MdRefresh, MdLabel, MdSortByAlpha } from 'react-icons/md';
 import { Brand } from '@/models/team/types/brand';
 import BrandModal from './brand-modal';
 
@@ -23,6 +25,8 @@ export default function BrandsPage() {
   const teamCode = params?.teamCode as string;
   const { currentTeam } = useTeam();
   const accessToken = useAccessToken();
+  const themeMode = useThemeMode();
+  const isDarkMode = themeMode === ThemeMode.Dark;
   
   // 品牌数据状态
   const [brands, setBrands] = useState<Brand[]>([]);
@@ -170,181 +174,210 @@ export default function BrandsPage() {
   
   return (
     <div className="w-full">
-      {/* 页面标题 */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">品牌管理</h1>
-        <button
-          onClick={handleAddBrand}
-          className="flex items-center gap-1 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
-        >
-          <MdAdd size={20} />
-          <span>添加品牌</span>
-        </button>
+      {/* 页面标题区域 */}
+      <div className="mb-6">
+        <h1 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+          品牌管理
+        </h1>
+        <p className={`mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>
+          管理和查看产品品牌资料
+        </p>
       </div>
       
-      {/* 搜索和筛选区域 */}
-      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-6">
-        <form onSubmit={handleSearch} className="flex flex-wrap gap-4">
-          <div className="flex-1 min-w-[200px]">
-            <div className="relative">
+      {/* 搜索区域 */}
+      <div className={`mb-6 p-4 rounded-xl shadow-sm ${isDarkMode ? 'glass-card-dark' : 'glass-card'}`}>
+        <div className="flex flex-col md:flex-row justify-between gap-4">
+          {/* 搜索表单 */}
+          <form onSubmit={handleSearch} className="flex flex-1">
+            <div className="relative flex-grow mr-2">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <MdSearch className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+              </div>
               <input
                 type="text"
                 placeholder="搜索品牌名称或描述..."
                 value={searchKeyword}
                 onChange={(e) => setSearchKeyword(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                className={`pl-10 pr-4 py-2 w-full rounded-lg ${
+                  isDarkMode
+                    ? 'bg-gray-800/60 border-gray-700 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                } border focus:outline-none focus:ring-2 focus:ring-blue-500`}
               />
-              <MdSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
             </div>
-          </div>
-          
-          <div className="flex gap-2">
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center"
             >
+              <MdSearch className="mr-1" />
               搜索
             </button>
-            
+          </form>
+          
+          <div className="flex space-x-2">
             <button
               type="button"
               onClick={handleClearFilters}
-              className="flex items-center gap-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-white rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+              className={`px-3 py-2 rounded-lg flex items-center ${
+                isDarkMode
+                  ? 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
             >
-              <MdRefresh size={18} />
-              <span>重置</span>
+              <MdRefresh className="mr-1" />
+              重置
+            </button>
+            <button
+              type="button"
+              onClick={handleAddBrand}
+              className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center"
+            >
+              <MdAdd className="mr-1" />
+              添加品牌
             </button>
           </div>
-        </form>
+        </div>
       </div>
       
       {/* 错误提示 */}
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          <p>{error}</p>
+        <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg">
+          {error}
+        </div>
+      )}
+      
+      {/* 加载中提示 */}
+      {isLoading && (
+        <div className={`flex justify-center items-center py-12 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mr-3"></div>
+          正在加载品牌数据...
+        </div>
+      )}
+      
+      {/* 无数据提示 */}
+      {!isLoading && brands.length === 0 && (
+        <div className={`text-center py-16 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+          <MdLabel className="mx-auto text-5xl mb-3 opacity-50" />
+          <p className="text-lg">暂无品牌数据</p>
+          <p className="mt-1 text-sm">点击"添加品牌"按钮创建新品牌</p>
         </div>
       )}
       
       {/* 品牌列表 */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-700">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  ID
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  排序
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  品牌名称
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  描述
-                </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  操作
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-4 text-center">
-                    <div className="flex justify-center items-center space-x-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                      <span>加载中...</span>
-                    </div>
-                  </td>
+      {!isLoading && brands.length > 0 && (
+        <div className={`rounded-xl overflow-hidden shadow-sm ${isDarkMode ? 'glass-card-dark' : 'glass-card'}`}>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className={`border-b ${isDarkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    ID/排序
+                  </th>
+                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    品牌名称
+                  </th>
+                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    描述
+                  </th>
+                  <th className={`px-6 py-3 text-right text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    操作
+                  </th>
                 </tr>
-              ) : brands.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
-                    暂无品牌数据
-                  </td>
-                </tr>
-              ) : (
-                brands.map((brand) => (
-                  <tr key={brand.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {brand.id}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {brand.order}
-                    </td>
+              </thead>
+              <tbody className={`divide-y ${isDarkMode ? 'divide-gray-700' : 'divide-gray-200'}`}>
+                {brands.map((brand) => (
+                  <tr key={brand.id} className={`${isDarkMode ? 'hover:bg-gray-800/30' : 'hover:bg-gray-50'} transition-colors`}>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">
-                        {brand.name}
+                      <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                        #{brand.id}
+                      </div>
+                      <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                        排序: {brand.order}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                      {brand.description || '-'}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className={`flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center ${
+                          isDarkMode ? 'bg-purple-900/30' : 'bg-purple-100'
+                        }`}>
+                          <MdSortByAlpha className={`h-6 w-6 ${isDarkMode ? 'text-purple-300' : 'text-purple-600'}`} />
+                        </div>
+                        <div className="ml-4">
+                          <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {brand.name}
+                          </div>
+                        </div>
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="flex justify-center space-x-2">
+                    <td className="px-6 py-4">
+                      <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} max-w-xs truncate`}>
+                        {brand.description || '-'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <div className="flex justify-end space-x-2">
                         <button
                           onClick={() => handleEditBrand(brand)}
-                          className="p-1 text-blue-600 hover:text-blue-800 transition-colors"
+                          className={`p-2 rounded-lg ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} text-blue-600 hover:text-blue-800 transition-colors`}
                           title="编辑"
                         >
-                          <MdEdit size={20} />
+                          <MdEdit size={18} />
                         </button>
                         <button
                           onClick={() => handleDeleteClick(brand)}
-                          className="p-1 text-red-600 hover:text-red-800 transition-colors"
+                          className={`p-2 rounded-lg ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} text-red-600 hover:text-red-800 transition-colors`}
                           title="删除"
                         >
-                          <MdDelete size={20} />
+                          <MdDelete size={18} />
                         </button>
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        
-        {/* 分页控件 */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-gray-200 dark:border-gray-700 px-4 py-3 sm:px-6">
-            <div className="hidden sm:block">
-              <p className="text-sm text-gray-700 dark:text-gray-300">
-                显示第 <span className="font-medium">{(currentPage - 1) * pageSize + 1}</span> 至{' '}
-                <span className="font-medium">
-                  {Math.min(currentPage * pageSize, totalBrands)}
-                </span>{' '}
-                条，共 <span className="font-medium">{totalBrands}</span> 条
-              </p>
-            </div>
-            <div className="flex-1 flex justify-between sm:justify-end">
-              <button
-                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className={`relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 ${
-                  currentPage === 1
-                    ? 'bg-gray-100 dark:bg-gray-800 cursor-not-allowed'
-                    : 'bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'
-                } mr-3`}
-              >
-                上一页
-              </button>
-              <button
-                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-                className={`relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 ${
-                  currentPage === totalPages
-                    ? 'bg-gray-100 dark:bg-gray-800 cursor-not-allowed'
-                    : 'bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'
-                }`}
-              >
-                下一页
-              </button>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
+          
+          {/* 分页控件 */}
+          {totalPages > 1 && (
+            <div className={`flex items-center justify-between border-t px-4 py-3 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <div className="hidden sm:block">
+                <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  显示第 <span className="font-medium">{(currentPage - 1) * pageSize + 1}</span> 至{' '}
+                  <span className="font-medium">
+                    {Math.min(currentPage * pageSize, totalBrands)}
+                  </span>{' '}
+                  条，共 <span className="font-medium">{totalBrands}</span> 条
+                </p>
+              </div>
+              <div className="flex-1 flex justify-between sm:justify-end">
+                <button
+                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md ${
+                    currentPage === 1
+                      ? `cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-500 border-gray-700' : 'bg-gray-100 text-gray-400 border-gray-200'}`
+                      : `${isDarkMode ? 'bg-gray-700 text-gray-200 border-gray-600 hover:bg-gray-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`
+                  } mr-3`}
+                >
+                  上一页
+                </button>
+                <button
+                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md ${
+                    currentPage === totalPages
+                      ? `cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-500 border-gray-700' : 'bg-gray-100 text-gray-400 border-gray-200'}`
+                      : `${isDarkMode ? 'bg-gray-700 text-gray-200 border-gray-600 hover:bg-gray-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`
+                  }`}
+                >
+                  下一页
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       
       {/* 品牌模态框 */}
       <BrandModal
@@ -357,21 +390,25 @@ export default function BrandsPage() {
       {/* 删除确认对话框 */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3">确认删除</h3>
-            <p className="text-gray-500 dark:text-gray-400 mb-4">
+          <div className={`p-6 rounded-lg shadow-xl max-w-md w-full ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+            <h3 className={`text-lg font-medium mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>确认删除</h3>
+            <p className={`mb-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>
               您确定要删除品牌 "{brandToDelete?.name}" 吗？此操作不可撤销。
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+                className={`px-4 py-2 rounded-lg ${
+                  isDarkMode
+                    ? 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+                    : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                } transition`}
               >
                 取消
               </button>
               <button
                 onClick={confirmDelete}
-                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
               >
                 删除
               </button>

@@ -28,6 +28,9 @@ export interface IUserInfo {
     status: WorkspaceStatus;
   };
   lastLoginAt?: string;
+  role?: string;
+  isAdmin?: boolean;
+  teamId?: number;
 }
 
 /**

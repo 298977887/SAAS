@@ -116,7 +116,10 @@ export class TeamConnectionManager {
       return this.pools.get(team_code)!;
     }
     
-    console.log(`创建团队${team_code}数据库连接池`);
+    // 只在开发环境输出日志
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`创建团队${team_code}数据库连接池`);
+    }
     
     // 判断系统负载状态，调整连接数
     const connectionLimit = ConnectionManager.isHighLoadMode() ? 5 : 10;

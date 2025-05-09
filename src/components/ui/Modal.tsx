@@ -1,7 +1,7 @@
 /**
  * @作者: 阿瑞
  * @功能: 毛玻璃效果模态框组件
- * @版本: 1.0.2
+ * @版本: 1.0.3
  */
 
 'use client';
@@ -40,6 +40,7 @@ export interface ModalProps {
   overlayClassName?: string;
   transitionDuration?: number;
   closeIconClass?: string;
+  width?: string;
 }
 
 /**
@@ -63,6 +64,7 @@ const Modal = ({
   overlayClassName = '',
   transitionDuration = 300, // 默认增加到300ms提供更流畅的动画效果
   closeIconClass = '',
+  width,
 }: ModalProps) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -220,7 +222,7 @@ const Modal = ({
       <div
         ref={modalRef}
         className={`
-          ${sizeStyles[size]}
+          ${width ? '' : sizeStyles[size]}
           ${glassEffect}
           ${directionStyles[position]}
           rounded-lg shadow-xl
@@ -235,6 +237,7 @@ const Modal = ({
         style={{
           transition: `all ${transitionDuration}ms cubic-bezier(0.4, 0, 0.2, 1)`,
           transformOrigin: 'center',
+          width: width || undefined,
         }}
       >
         {/* 模态框头部 */}

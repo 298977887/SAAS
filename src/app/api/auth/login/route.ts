@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
       user: userInfo,
       accessToken
     });
-  } catch (error: any) {
+  } catch (error: Error | unknown) {
     console.error('登录处理失败:', error);
     
     // 返回错误响应

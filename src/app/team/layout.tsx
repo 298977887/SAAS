@@ -42,14 +42,15 @@ const Sidebar: React.FC = () => {
   // 菜单项配置
   const getMenuItems = (): MenuItem[] => [
     { name: '概览仪表盘', path: `/team/${teamCode}`, icon: <MdDashboard className="text-xl" /> },
-    { name: '客户管理', path: `/team/${teamCode}/customers`, icon: <MdPeople className="text-xl" /> },
     { name: '品牌管理', path: `/team/${teamCode}/brands`, icon: <MdBrush className="text-xl" /> },
     { name: '品类管理', path: `/team/${teamCode}/categories`, icon: <MdCategory className="text-xl" /> },
     { name: '供应商管理', path: `/team/${teamCode}/suppliers`, icon: <MdLocalShipping className="text-xl" /> },
     { name: '产品管理', path: `/team/${teamCode}/products`, icon: <MdInventory className="text-xl" /> },
     { name: '店铺管理', path: `/team/${teamCode}/shops`, icon: <MdStorefront className="text-xl" /> },
     { name: '支付平台', path: `/team/${teamCode}/payment-platforms`, icon: <MdPayment className="text-xl" /> },
-    { name: '销售记录', path: `/team/${teamCode}/sales`, icon: <MdReceiptLong className="text-xl" /> },
+    { name: '客户管理', path: `/team/${teamCode}/customers`, icon: <MdPeople className="text-xl" /> },
+    { name: '创建销售记录', path: `/team/${teamCode}/sales`, icon: <MdReceiptLong className="text-xl" /> },
+    { name: '销售列表', path: `/team/${teamCode}/sales-records`, icon: <MdReceiptLong className="text-xl" /> },
     { name: '售后管理', path: `/team/${teamCode}/after-sales`, icon: <MdOutlineSupportAgent className="text-xl" /> },
     { name: '物流管理', path: `/team/${teamCode}/logistics`, icon: <MdLocalOffer className="text-xl" /> },
   ];
@@ -225,17 +226,6 @@ const TeamLayoutContent: React.FC<{ children: React.ReactNode }> = ({ children }
           {children}
         </div>
       </main>
-
-      {/*
-      <aside className={`h-screen overflow-y-auto fixed top-0 z-10 ${isDarkMode ? 'glass-card-dark' : 'glass-card'} border-r ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
-        <div className="p-5 border-b border-gray-200 dark:border-gray-700">
-          <h1 className={`text-xl font-bold truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            {currentTeam?.name || '加载中...'}
-          </h1>
-          <p className={`text-sm mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>团队管理系统</p>
-        </div>
-      </aside>
-      */}
 
     </div>
   );

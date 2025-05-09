@@ -111,10 +111,11 @@ export default function LoginPage() {
         window.location.href = '/workspace'; // 使用原生导航，绕过任何Route拦截
       }, 500);
       
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('登录失败详情:', error);
-      setError(error.message || '登录过程中发生错误');
-      notification.error(error.message || '登录失败');
+      const errorMessage = error instanceof Error ? error.message : '登录过程中发生错误';
+      setError(errorMessage);
+      notification.error(errorMessage);
     } finally {
       setLoading(false);
     }

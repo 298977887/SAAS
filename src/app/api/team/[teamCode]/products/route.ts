@@ -1,7 +1,7 @@
 /**
  * 产品API接口
  * 作者: 阿瑞
- * 功能: 提供产品数据的查询和创建接口
+ * 功能: 提供产品数据的查询接口
  * 版本: 1.0.0
  */
 
@@ -20,13 +20,9 @@ const getProducts = async (req: NextRequest, params: { teamCode: string }, pool:
   const page = parseInt(url.searchParams.get('page') || '1');
   const pageSize = parseInt(url.searchParams.get('pageSize') || '10');
   const keyword = url.searchParams.get('keyword') || '';
-  const supplierId = url.searchParams.get('supplierId') ? parseInt(url.searchParams.get('supplierId') as string) : null;
-  const brandId = url.searchParams.get('brandId') ? parseInt(url.searchParams.get('brandId') as string) : null;
-  const categoryId = url.searchParams.get('categoryId') ? parseInt(url.searchParams.get('categoryId') as string) : null;
-  const level = url.searchParams.get('level') || null;
-  const minPrice = url.searchParams.get('minPrice') ? parseFloat(url.searchParams.get('minPrice') as string) : null;
-  const maxPrice = url.searchParams.get('maxPrice') ? parseFloat(url.searchParams.get('maxPrice') as string) : null;
-  const hasStock = url.searchParams.get('hasStock') === 'true';
+  const supplierId = url.searchParams.get('supplierId') || '';
+  const brandId = url.searchParams.get('brandId') || '';
+  const categoryId = url.searchParams.get('categoryId') || '';
   
   // 计算偏移量
   const offset = (page - 1) * pageSize;
@@ -39,42 +35,23 @@ const getProducts = async (req: NextRequest, params: { teamCode: string }, pool:
     const params = [];
     
     if (keyword) {
-      conditions.push('(p.name LIKE ? OR p.code LIKE ? OR p.sku LIKE ? OR p.description LIKE ? OR JSON_SEARCH(p.aliases, "one", ?) IS NOT NULL)');
-      params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
+      conditions.push('(p.name LIKE ? OR p.code LIKE ? OR p.sku LIKE ? OR p.description LIKE ?)');
+      params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
     }
     
-    if (supplierId !== null) {
+    if (supplierId) {
       conditions.push('p.supplier_id = ?');
       params.push(supplierId);
     }
     
-    if (brandId !== null) {
+    if (brandId) {
       conditions.push('p.brand_id = ?');
       params.push(brandId);
     }
     
-    if (categoryId !== null) {
+    if (categoryId) {
       conditions.push('p.category_id = ?');
       params.push(categoryId);
-    }
-    
-    if (level) {
-      conditions.push('p.level = ?');
-      params.push(level);
-    }
-    
-    if (minPrice !== null) {
-      conditions.push('p.price >= ?');
-      params.push(minPrice);
-    }
-    
-    if (maxPrice !== null) {
-      conditions.push('p.price <= ?');
-      params.push(maxPrice);
-    }
-    
-    if (hasStock) {
-      conditions.push('p.stock > 0');
     }
     
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -93,21 +70,24 @@ const getProducts = async (req: NextRequest, params: { teamCode: string }, pool:
       
       const total = (totalRows as any)[0].total;
       
-      // 查询分页数据，包括关联的供应商、品牌、品类名称
+      // 查询分页数据
       const querySql = `
         SELECT 
-          p.id, p.supplier_id as supplierId, p.brand_id as brandId, p.category_id as categoryId, 
-          p.name, p.description, p.code, p.image, p.sku, p.aliases, p.level, p.cost, 
-          p.price, p.stock, p.logistics_status as logisticsStatus, 
-          p.logistics_details as logisticsDetails, p.tracking_number as trackingNumber,
-          p.created_at as createdAt, p.updated_at as updatedAt,
-          s.name as supplierName, b.name as brandName, c.name as categoryName
+          p.id, p.supplier_id as supplierId, s.name as supplierName,
+          p.brand_id as brandId, b.name as brandName,
+          p.category_id as categoryId, c.name as categoryName,
+          p.name, p.description, p.code, p.image, p.sku,
+          p.aliases, p.level, p.cost, p.price, p.stock,
+          p.logistics_status as logisticsStatus, 
+          p.logistics_details as logisticsDetails,
+          p.tracking_number as trackingNumber,
+          p.created_at as createdAt, p.updated_at as updatedAt
         FROM products p
         LEFT JOIN suppliers s ON p.supplier_id = s.id
         LEFT JOIN brands b ON p.brand_id = b.id
         LEFT JOIN categories c ON p.category_id = c.id
-        ${whereClause} 
-        ORDER BY p.created_at DESC 
+        ${whereClause}
+        ORDER BY p.created_at DESC
         LIMIT ? OFFSET ?
       `;
       
@@ -116,37 +96,59 @@ const getProducts = async (req: NextRequest, params: { teamCode: string }, pool:
       
       const [rows] = await connection.query(querySql, queryParams);
       
-      // 查询所有不同的产品级别，用于前端筛选
-      const [levelRows] = await connection.query('SELECT DISTINCT level FROM products WHERE level IS NOT NULL AND level != ""');
-      const levels = Array.isArray(levelRows) ? levelRows.map((row: any) => row.level).filter(Boolean) : [];
+      // 处理查询结果
+      let products = Array.isArray(rows) ? rows : [];
+      
+      // 处理别名和成本字段的JSON解析
+      products = products.map(product => {
+        // 处理别名字段
+        if (product.aliases && typeof product.aliases === 'string') {
+          try {
+            product.aliases = JSON.parse(product.aliases);
+          } catch (e) {
+            product.aliases = [];
+          }
+        }
+        
+        // 处理成本字段
+        if (product.cost && typeof product.cost === 'string') {
+          try {
+            product.cost = JSON.parse(product.cost);
+          } catch (e) {
+            product.cost = {};
+          }
+        }
+        
+        // 处理关联对象
+        if (product.supplierId && product.supplierName) {
+          product.supplier = {
+            id: product.supplierId,
+            name: product.supplierName
+          };
+        }
+        
+        if (product.brandId && product.brandName) {
+          product.brand = {
+            id: product.brandId,
+            name: product.brandName
+          };
+        }
+        
+        if (product.categoryId && product.categoryName) {
+          product.category = {
+            id: product.categoryId,
+            name: product.categoryName
+          };
+        }
+        
+        return product;
+      });
       
       console.log(`查询团队[${teamCode}]产品列表成功, 总数:${total}`);
       
       return NextResponse.json({
         total,
-        products: Array.isArray(rows) ? rows.map((product: any) => {
-          // 处理JSON字段
-          if (product.aliases && typeof product.aliases === 'string') {
-            try {
-              product.aliases = JSON.parse(product.aliases);
-            } catch (e) {
-              product.aliases = [];
-            }
-          }
-          
-          if (product.cost && typeof product.cost === 'string') {
-            try {
-              product.cost = JSON.parse(product.cost);
-            } catch (e) {
-              product.cost = {};
-            }
-          }
-          
-          return product;
-        }) : [],
-        filters: {
-          levels
-        }
+        products
       });
     } finally {
       // 确保在任何情况下都释放连接

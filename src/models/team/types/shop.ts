@@ -10,10 +10,10 @@
  */
 export enum ShopStatus {
   DISABLED = 0,  // 停用
-  ACTIVE = 1,    // 正常
+  NORMAL = 1,    // 正常
   BANNED = 2,    // 封禁
   PENDING = 3,   // 待解封
-  RESERVE = 4,   // 备用
+  BACKUP = 4,    // 备用
   OTHER = 5      // 其他
 }
 
@@ -31,6 +31,7 @@ export interface Shop {
   phone?: string;
   status: ShopStatus;
   remark?: string;
+  accountTypes?: number[];
   createdAt: string;
   updatedAt: string;
 }
@@ -48,6 +49,7 @@ export interface CreateShopParams {
   phone?: string;
   status?: ShopStatus;
   remark?: string;
+  accountTypes?: number[];
 }
 
 /**
@@ -64,6 +66,7 @@ export interface UpdateShopParams {
   phone?: string;
   status?: ShopStatus;
   remark?: string;
+  accountTypes?: number[];
 }
 
 /**
@@ -72,6 +75,7 @@ export interface UpdateShopParams {
 export interface QueryShopsParams {
   keyword?: string;
   status?: ShopStatus;
+  accountType?: number;
   page?: number;
   pageSize?: number;
 }

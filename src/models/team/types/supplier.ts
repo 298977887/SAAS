@@ -9,19 +9,19 @@
  * 供应商状态枚举
  */
 export enum SupplierStatus {
-  DISABLED = 0, // 停用
-  ENABLED = 1,  // 启用
-  ABNORMAL = 2, // 异常
-  STANDBY = 3   // 备用
+  DISABLED = 0,  // 停用
+  NORMAL = 1,    // 正常
+  EXCEPTION = 2, // 异常
+  BACKUP = 3     // 备用
 }
 
 /**
  * 供应商联系方式接口
  */
 export interface SupplierContact {
-  phone?: string;      // 联系电话
-  contactPerson?: string; // 联系人
-  address?: string;    // 地址
+  phone?: string;
+  contactPerson?: string;
+  address?: string;
 }
 
 /**
@@ -36,6 +36,7 @@ export interface Supplier {
   level?: string;
   type?: string;
   remark?: string;
+  categories?: number[];
   createdAt: string;
   updatedAt: string;
 }
@@ -44,13 +45,14 @@ export interface Supplier {
  * 创建供应商请求参数
  */
 export interface CreateSupplierParams {
-  name: string;
   order?: number;
+  name: string;
   contact?: SupplierContact;
   status?: SupplierStatus;
   level?: string;
   type?: string;
   remark?: string;
+  categories?: number[];
 }
 
 /**
@@ -58,13 +60,14 @@ export interface CreateSupplierParams {
  */
 export interface UpdateSupplierParams {
   id: number;
-  name?: string;
   order?: number;
+  name?: string;
   contact?: SupplierContact;
   status?: SupplierStatus;
   level?: string;
   type?: string;
   remark?: string;
+  categories?: number[];
 }
 
 /**
@@ -73,6 +76,7 @@ export interface UpdateSupplierParams {
 export interface QuerySuppliersParams {
   keyword?: string;
   status?: SupplierStatus;
+  categoryId?: number;
   level?: string;
   type?: string;
   page?: number;

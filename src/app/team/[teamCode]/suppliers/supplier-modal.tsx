@@ -9,10 +9,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { useTeam } from '@/hooks/useTeam';
-import { useThemeMode } from '@/store/settingStore';
 import { useAccessToken } from '@/store/userStore';
-import { ThemeMode } from '@/types/enum';
 import { Supplier, SupplierStatus, SupplierContact } from '@/models/team/types/supplier';
 import Modal from '@/components/ui/Modal';
 
@@ -38,10 +35,7 @@ export default function SupplierModal({
 }: SupplierModalProps) {
   const params = useParams();
   const teamCode = params?.teamCode as string;
-  const { currentTeam } = useTeam();
   const accessToken = useAccessToken();
-  const themeMode = useThemeMode();
-  const isDarkMode = themeMode === ThemeMode.Dark;
   
   const isEditing = !!supplier;
   
@@ -54,15 +48,13 @@ export default function SupplierModal({
       phone: '',
       address: ''
     },
-    status: SupplierStatus.ENABLED,
+    status: SupplierStatus.NORMAL,
     level: '',
     type: '',
     remark: ''
   });
   
   // 新选项输入状态
-  const [newLevel, setNewLevel] = useState('');
-  const [newType, setNewType] = useState('');
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -111,15 +103,12 @@ export default function SupplierModal({
           phone: '',
           address: ''
         },
-        status: SupplierStatus.ENABLED,
+        status: SupplierStatus.NORMAL,
         level: '',
         type: '',
         remark: ''
       });
     }
-    
-    setNewLevel('');
-    setNewType('');
     setError(null);
   }, [supplier, isOpen]);
   
@@ -168,31 +157,7 @@ export default function SupplierModal({
     }));
   };
   
-  /**
-   * 添加新级别
-   */
-  const handleAddLevel = () => {
-    if (newLevel && !availableLevels.includes(newLevel)) {
-      setFormData(prev => ({
-        ...prev,
-        level: newLevel
-      }));
-      setNewLevel('');
-    }
-  };
   
-  /**
-   * 添加新类型
-   */
-  const handleAddType = () => {
-    if (newType && !availableTypes.includes(newType)) {
-      setFormData(prev => ({
-        ...prev,
-        type: newType
-      }));
-      setNewType('');
-    }
-  };
   
   /**
    * 提交表单
@@ -367,10 +332,10 @@ export default function SupplierModal({
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             >
-              <option value={SupplierStatus.ENABLED}>启用</option>
+              <option value={SupplierStatus.NORMAL}>启用</option>
               <option value={SupplierStatus.DISABLED}>停用</option>
-              <option value={SupplierStatus.ABNORMAL}>异常</option>
-              <option value={SupplierStatus.STANDBY}>备用</option>
+              <option value={SupplierStatus.EXCEPTION}>异常</option>
+              <option value={SupplierStatus.BACKUP}>备用</option>
             </select>
           </div>
           

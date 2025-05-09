@@ -11,7 +11,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { useTeam } from '@/hooks/useTeam';
 import { useAccessToken } from '@/store/userStore';
-import { MdAdd, MdSearch, MdEdit, MdDelete, MdRefresh, MdFilterList } from 'react-icons/md';
+import { useThemeMode } from '@/store/settingStore';
+import { ThemeMode } from '@/types/enum';
+import { MdAdd, MdSearch, MdEdit, MdDelete, MdRefresh, MdFilterList, MdInventory } from 'react-icons/md';
 import { Product } from '@/models/team/types/product';
 import ProductModal from './product-modal';
 import ProductFilters from './components/ProductFilters';
@@ -24,6 +26,8 @@ export default function ProductsPage() {
   const teamCode = params?.teamCode as string;
   const { currentTeam } = useTeam();
   const accessToken = useAccessToken();
+  const themeMode = useThemeMode();
+  const isDarkMode = themeMode === ThemeMode.Dark;
   
   // 产品数据状态
   const [products, setProducts] = useState<Product[]>([]);
@@ -281,299 +285,343 @@ export default function ProductsPage() {
   };
   
   /**
+   * 格式化价格显示
+   */
+  const formatPrice = (price: number | undefined | null): string => {
+    if (price === undefined || price === null) return '-';
+    // 确保price是数字类型
+    const numericPrice = Number(price);
+    if (isNaN(numericPrice)) return '-';
+    return numericPrice.toFixed(2);
+  };
+  
+  /**
+   * 获取产品成本价
+   */
+  const getCostPrice = (product: Product): number | undefined => {
+    if (!product.cost) return undefined;
+    
+    // 检查API返回的cost结构
+    // 有些API返回 { costPrice, packagingFee, shippingFee }
+    // 有些API返回 { base, packaging, shipping }
+    if ('costPrice' in product.cost) {
+      return product.cost.costPrice;
+    } else if ((product.cost as any).base !== undefined) {
+      return (product.cost as any).base;
+    }
+    
+    return undefined;
+  };
+  
+  /**
+   * 获取销售价（即产品的主要价格）
+   */
+  const getSalePrice = (product: Product): number | undefined => {
+    return product.price;
+  };
+  
+  /**
+   * 获取运费
+   */
+  const getShippingFee = (product: Product): number | undefined => {
+    if (!product.cost) return undefined;
+    
+    // 检查API返回的cost结构
+    if ('shippingFee' in product.cost) {
+      return product.cost.shippingFee;
+    } else if ((product.cost as any).shipping !== undefined) {
+      return (product.cost as any).shipping;
+    }
+    
+    return undefined;
+  };
+  
+  /**
    * 计算总页数
    */
   const totalPages = Math.ceil(totalProducts / pageSize);
   
-  /**
-   * 格式化价格显示
-   */
-  const formatPrice = (price: number | undefined | null): string => {
-    return typeof price === 'number' ? price.toFixed(2) : '0.00';
-  };
-  
   return (
     <div className="w-full">
-      {/* 页面标题 */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">产品管理</h1>
-        <button
-          onClick={handleAddProduct}
-          className="flex items-center gap-1 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
-        >
-          <MdAdd size={20} />
-          <span>添加产品</span>
-        </button>
+      {/* 页面标题区域 */}
+      <div className="mb-6">
+        <h1 className={`text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+          产品管理
+        </h1>
+        <p className={`mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>
+          管理和查看产品数据
+        </p>
       </div>
       
-      {/* 搜索和筛选区域 */}
-      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-6">
-        <div className="flex flex-wrap gap-4">
-          <div className="flex-1 min-w-[200px]">
-            <form onSubmit={handleSearch} className="flex">
-              <div className="relative flex-1">
-                <input
-                  type="text"
-                  placeholder="搜索产品名称、代码、SKU..."
-                  value={searchKeyword}
-                  onChange={(e) => setSearchKeyword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                />
-                <MdSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+      {/* 搜索区域 */}
+      <div className={`mb-6 p-4 rounded-xl shadow-sm ${isDarkMode ? 'glass-card-dark' : 'glass-card'}`}>
+        <div className="flex flex-col md:flex-row justify-between gap-4">
+          {/* 搜索表单 */}
+          <form onSubmit={handleSearch} className="flex flex-1">
+            <div className="relative flex-grow mr-2">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <MdSearch className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
               </div>
-              <button
-                type="submit"
-                className="ml-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
-              >
-                搜索
-              </button>
-            </form>
-          </div>
-          
-          <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="搜索产品名称、SKU或描述..."
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+                className={`pl-10 pr-4 py-2 w-full rounded-lg ${
+                  isDarkMode
+                    ? 'bg-gray-800/60 border-gray-700 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                } border focus:outline-none focus:ring-2 focus:ring-blue-500`}
+              />
+            </div>
             <button
               type="button"
               onClick={() => setFilterOpen(!filterOpen)}
-              className={`flex items-center gap-1 px-4 py-2 border rounded ${
-                Object.values(filters).some(val => val !== '' && val !== false)
-                  ? 'bg-blue-100 border-blue-300 text-blue-700 dark:bg-blue-900 dark:border-blue-700 dark:text-blue-200'
-                  : 'bg-gray-100 border-gray-300 text-gray-700 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200'
-              }`}
+              className={`px-3 py-2 rounded-lg flex items-center mr-2 ${
+                isDarkMode
+                  ? 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              } ${filterOpen ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' : ''}`}
+              title="筛选"
             >
-              <MdFilterList size={18} />
-              <span>筛选</span>
-              {Object.values(filters).some(val => val !== '' && val !== false) && (
-                <span className="ml-1 w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center">
-                  {Object.values(filters).filter(val => val !== '' && val !== false).length}
-                </span>
-              )}
+              <MdFilterList className="mr-1" />
+              筛选
             </button>
-            
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center"
+            >
+              <MdSearch className="mr-1" />
+              搜索
+            </button>
+          </form>
+          
+          <div className="flex space-x-2">
             <button
               type="button"
               onClick={handleClearFilters}
-              className="flex items-center gap-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-white rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+              className={`px-3 py-2 rounded-lg flex items-center ${
+                isDarkMode
+                  ? 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
             >
-              <MdRefresh size={18} />
-              <span>重置</span>
+              <MdRefresh className="mr-1" />
+              重置
+            </button>
+            <button
+              type="button"
+              onClick={handleAddProduct}
+              className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center"
+            >
+              <MdAdd className="mr-1" />
+              添加产品
             </button>
           </div>
         </div>
         
-        {/* 筛选条件面板 */}
+        {/* 筛选面板 */}
         {filterOpen && (
-          <ProductFilters
-            filters={filters}
-            onChange={handleFilterChange}
-            onApply={applyFilters}
-            onCancel={() => setFilterOpen(false)}
-            suppliers={suppliers}
-            brands={brands}
-            categories={categories}
-            availableLevels={availableLevels}
-          />
+          <div className={`mt-4 p-4 rounded-lg ${isDarkMode ? 'bg-gray-800/50 border border-gray-700' : 'bg-gray-50 border border-gray-200'}`}>
+            <ProductFilters 
+              filters={filters} 
+              onChange={handleFilterChange}
+              onApply={applyFilters}
+              onCancel={handleClearFilters}
+              suppliers={suppliers}
+              brands={brands}
+              categories={categories}
+              availableLevels={availableLevels}
+            />
+          </div>
         )}
       </div>
       
       {/* 错误提示 */}
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          <p>{error}</p>
+        <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg">
+          {error}
+        </div>
+      )}
+      
+      {/* 加载中提示 */}
+      {isLoading && (
+        <div className={`flex justify-center items-center py-12 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mr-3"></div>
+          正在加载产品数据...
+        </div>
+      )}
+      
+      {/* 无数据提示 */}
+      {!isLoading && products.length === 0 && (
+        <div className={`text-center py-16 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+          <MdInventory className="mx-auto text-5xl mb-3 opacity-50" />
+          <p className="text-lg">暂无产品数据</p>
+          <p className="mt-1 text-sm">点击"添加产品"按钮创建新产品</p>
         </div>
       )}
       
       {/* 产品列表 */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-700">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  ID
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  产品信息
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  分类
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  库存
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  价格
-                </th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                  操作
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-4 text-center">
-                    <div className="flex justify-center items-center space-x-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                      <span>加载中...</span>
-                    </div>
-                  </td>
+      {!isLoading && products.length > 0 && (
+        <div className={`rounded-xl overflow-hidden shadow-sm ${isDarkMode ? 'glass-card-dark' : 'glass-card'}`}>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className={`border-b ${isDarkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    产品信息
+                  </th>
+                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    品牌/品类
+                  </th>
+                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    价格信息
+                  </th>
+                  <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    库存
+                  </th>
+                  <th className={`px-6 py-3 text-right text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    操作
+                  </th>
                 </tr>
-              ) : products.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-4 text-center text-gray-500 dark:text-gray-400">
-                    暂无产品数据
-                  </td>
-                </tr>
-              ) : (
-                products.map((product) => (
-                  <tr key={product.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <td className="px-4 py-4 text-sm text-gray-500 dark:text-gray-400">
-                      {product.id}
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="flex items-start">
-                        {product.image ? (
-                          <img 
-                            src={product.image} 
-                            alt={product.name} 
-                            className="w-12 h-12 object-cover rounded mr-3"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded flex items-center justify-center mr-3">
-                            <span className="text-gray-400 text-xs">无图</span>
-                          </div>
-                        )}
+              </thead>
+              <tbody className={`divide-y ${isDarkMode ? 'divide-gray-700' : 'divide-gray-200'}`}>
+                {products.map((product) => (
+                  <tr key={product.id} className={`${isDarkMode ? 'hover:bg-gray-800/30' : 'hover:bg-gray-50'} transition-colors`}>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 h-16 w-16 rounded overflow-hidden bg-gray-100 dark:bg-gray-700 mr-4 flex items-center justify-center">
+                          {product.image ? (
+                            <img 
+                              src={product.image} 
+                              alt={product.name} 
+                              className="h-full w-full object-cover"
+                              onError={(e) => {
+                                // 图片加载失败时显示默认图标
+                                (e.target as HTMLImageElement).style.display = 'none';
+                                (e.target as HTMLImageElement).parentElement!.innerHTML = '<span class="text-gray-400 dark:text-gray-500"><svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></span>';
+                              }}
+                            />
+                          ) : (
+                            <span className={`text-gray-400 dark:text-gray-500`}>
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                            </span>
+                          )}
+                        </div>
                         <div>
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">
+                          <div className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                             {product.name}
                           </div>
-                          {product.code && (
-                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                              编码: {product.code}
-                            </div>
-                          )}
-                          {product.sku && (
-                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                              SKU: {product.sku}
+                          <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                            SKU: {product.sku || '-'}
+                          </div>
+                          {product.aliases && product.aliases.length > 0 && (
+                            <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                              别名: {product.aliases.join(', ')}
                             </div>
                           )}
                           {product.level && (
-                            <div className="mt-1">
-                              <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                                {product.level}
-                              </span>
+                            <div className={`mt-1 inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${
+                              isDarkMode ? 'bg-purple-900/30 text-purple-300' : 'bg-purple-100 text-purple-800'
+                            }`}>
+                              {product.level}
                             </div>
                           )}
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-4">
-                      <div className="text-sm text-gray-900 dark:text-white flex flex-col gap-1">
-                        {product.supplierName && (
-                          <div className="flex items-center">
-                            <span className="text-xs text-gray-500 dark:text-gray-400 w-14">供应商:</span>
-                            <span>{product.supplierName}</span>
-                          </div>
-                        )}
-                        {product.brandName && (
-                          <div className="flex items-center">
-                            <span className="text-xs text-gray-500 dark:text-gray-400 w-14">品牌:</span>
-                            <span>{product.brandName}</span>
-                          </div>
-                        )}
-                        {product.categoryName && (
-                          <div className="flex items-center">
-                            <span className="text-xs text-gray-500 dark:text-gray-400 w-14">品类:</span>
-                            <span>{product.categoryName}</span>
-                          </div>
-                        )}
+                    <td className="px-6 py-4">
+                      <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                        <div>品牌: {product.brand?.name || '-'}</div>
+                        <div>品类: {product.categoryName || '-'}</div>
+                        <div>供应商: {product.supplier?.name || '-'}</div>
                       </div>
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 inline-flex text-sm leading-5 font-semibold rounded-full ${
-                        product.stock > 10
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          : product.stock > 0
-                          ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                      }`}>
-                        {product.stock}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      <div className="font-medium text-gray-900 dark:text-white">
-                        ¥{formatPrice(product.price)}
+                    <td className="px-6 py-4">
+                      <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                        <div>成本价: ¥{formatPrice(getCostPrice(product))}</div>
+                        <div>销售价: ¥{formatPrice(getSalePrice(product))}</div>
+                        <div>运费: ¥{formatPrice(getShippingFee(product))}</div>
                       </div>
-                      {product.cost?.base && (
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          成本: ¥{formatPrice(product.cost.base)}
-                        </div>
-                      )}
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-center">
-                      <div className="flex justify-center space-x-2">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                        {product.stock !== undefined && product.stock !== null ? (
+                          <span className={product.stock > 0 
+                            ? (isDarkMode ? 'text-green-400' : 'text-green-600') 
+                            : (isDarkMode ? 'text-red-400' : 'text-red-600')
+                          }>
+                            {product.stock}
+                          </span>
+                        ) : '-'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <div className="flex justify-end space-x-2">
                         <button
                           onClick={() => handleEditProduct(product)}
-                          className="p-1 text-blue-600 hover:text-blue-800 transition-colors"
+                          className={`p-2 rounded-lg ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} text-blue-600 hover:text-blue-800 transition-colors`}
                           title="编辑"
                         >
-                          <MdEdit size={20} />
+                          <MdEdit size={18} />
                         </button>
                         <button
                           onClick={() => handleDeleteClick(product)}
-                          className="p-1 text-red-600 hover:text-red-800 transition-colors"
+                          className={`p-2 rounded-lg ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} text-red-600 hover:text-red-800 transition-colors`}
                           title="删除"
                         >
-                          <MdDelete size={20} />
+                          <MdDelete size={18} />
                         </button>
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        
-        {/* 分页控件 */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-gray-200 dark:border-gray-700 px-4 py-3 sm:px-6">
-            <div className="hidden sm:block">
-              <p className="text-sm text-gray-700 dark:text-gray-300">
-                显示第 <span className="font-medium">{(currentPage - 1) * pageSize + 1}</span> 至{' '}
-                <span className="font-medium">
-                  {Math.min(currentPage * pageSize, totalProducts)}
-                </span>{' '}
-                条，共 <span className="font-medium">{totalProducts}</span> 条
-              </p>
-            </div>
-            <div className="flex-1 flex justify-between sm:justify-end">
-              <button
-                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className={`relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 ${
-                  currentPage === 1
-                    ? 'bg-gray-100 dark:bg-gray-800 cursor-not-allowed'
-                    : 'bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'
-                } mr-3`}
-              >
-                上一页
-              </button>
-              <button
-                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-                className={`relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 ${
-                  currentPage === totalPages
-                    ? 'bg-gray-100 dark:bg-gray-800 cursor-not-allowed'
-                    : 'bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'
-                }`}
-              >
-                下一页
-              </button>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
+          
+          {/* 分页控件 */}
+          {totalPages > 1 && (
+            <div className={`flex items-center justify-between border-t px-4 py-3 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <div className="hidden sm:block">
+                <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  显示第 <span className="font-medium">{(currentPage - 1) * pageSize + 1}</span> 至{' '}
+                  <span className="font-medium">
+                    {Math.min(currentPage * pageSize, totalProducts)}
+                  </span>{' '}
+                  条，共 <span className="font-medium">{totalProducts}</span> 条
+                </p>
+              </div>
+              <div className="flex-1 flex justify-between sm:justify-end">
+                <button
+                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md ${
+                    currentPage === 1
+                      ? `cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-500 border-gray-700' : 'bg-gray-100 text-gray-400 border-gray-200'}`
+                      : `${isDarkMode ? 'bg-gray-700 text-gray-200 border-gray-600 hover:bg-gray-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`
+                  } mr-3`}
+                >
+                  上一页
+                </button>
+                <button
+                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md ${
+                    currentPage === totalPages
+                      ? `cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-500 border-gray-700' : 'bg-gray-100 text-gray-400 border-gray-200'}`
+                      : `${isDarkMode ? 'bg-gray-700 text-gray-200 border-gray-600 hover:bg-gray-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`
+                  }`}
+                >
+                  下一页
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       
       {/* 产品模态框 */}
       <ProductModal
@@ -590,21 +638,25 @@ export default function ProductsPage() {
       {/* 删除确认对话框 */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3">确认删除</h3>
-            <p className="text-gray-500 dark:text-gray-400 mb-4">
+          <div className={`p-6 rounded-lg shadow-xl max-w-md w-full ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+            <h3 className={`text-lg font-medium mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>确认删除</h3>
+            <p className={`mb-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>
               您确定要删除产品 "{productToDelete?.name}" 吗？此操作不可撤销。
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+                className={`px-4 py-2 rounded-lg ${
+                  isDarkMode
+                    ? 'bg-gray-700 text-gray-200 hover:bg-gray-600'
+                    : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+                } transition`}
               >
                 取消
               </button>
               <button
                 onClick={confirmDelete}
-                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
               >
                 删除
               </button>

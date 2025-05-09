@@ -192,9 +192,12 @@ export class ConnectionManager {
       stats.pendingRequests++;
       this.poolStats.set(poolKey, stats);
       
-      // 检查是否需要进入高负载模式
+      // 只在开发环境记录高负载日志
       if (stats.pendingRequests > DbConfig.queueLimit * 0.8) {
         this.isHighLoad = true;
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`数据库连接池[${poolKey}]处于高负载状态`);
+        }
       }
     });
     

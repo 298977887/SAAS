@@ -161,8 +161,11 @@ export class Database {
       queueLimit: 0
     });
 
-    console.log(`数据库连接池初始化: 连接限制=${config.connectionLimit || 10}, 队列限制=${config.queueLimit || 0}`);
-    console.log(`数据库连接初始化至: ${config.host}:${config.port}`);
+    // 只在开发环境输出详细日志
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`数据库连接池初始化: 连接限制=${config.connectionLimit || 10}, 队列限制=${config.queueLimit || 0}`);
+      console.log(`数据库连接初始化至: ${config.host}:${config.port}`);
+    }
   }
 
   /**

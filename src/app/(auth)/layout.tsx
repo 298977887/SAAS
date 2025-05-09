@@ -21,7 +21,7 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   const themeMode = useThemeMode();
-  
+
   // 计算当前是否是深色模式
   const isDarkMode = themeMode === ThemeMode.Dark;
   // 判断当前是否是注册页面
@@ -34,30 +34,33 @@ export default function AuthLayout({
         <div className="absolute top-[20%] -right-10 w-[700px] h-[700px] bg-blue-500/10 rounded-full filter blur-[100px] opacity-70 animate-blob animation-delay-4000"></div>
         <div className="absolute -bottom-20 left-[15%] w-[850px] h-[850px] bg-teal-400/8 rounded-full filter blur-[120px] opacity-60 animate-blob animation-delay-2000"></div>
       </div>
-      
+
       {/* 装饰小球元素 */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute top-[15%] left-[10%] w-4 h-4 rounded-full bg-accent-teal/60 animate-float"></div>
         <div className="absolute top-[30%] right-[15%] w-3 h-3 rounded-full bg-accent-purple/50 animate-float animation-delay-2000"></div>
         <div className="absolute bottom-[25%] left-[20%] w-4 h-4 rounded-full bg-accent-blue/50 animate-float animation-delay-4000"></div>
       </div>
-      
+
       {/* 左侧应用简介 - 占据2/3空间 */}
       <div className="hidden md:flex md:w-2/3 relative z-10">
         <div className="flex flex-col items-center justify-center p-12 h-full w-full">
           <div className={`max-w-2xl ${isDarkMode ? 'glass-card-dark' : 'glass-card'} p-8 rounded-xl`}>
             <div className="flex flex-col items-center mb-8">
               <div className={`h-20 w-20 rounded-2xl ${isDarkMode ? 'bg-gradient-to-br from-blue-500/40 via-purple-500/30 to-teal-500/40' : 'bg-gradient-to-br from-blue-100 via-purple-100 to-teal-100'} flex items-center justify-center mb-4 rotate-3 shadow-lg`}>
-                <span className={`text-3xl font-bold ${isDarkMode ? 'text-blue-300' : 'text-blue-600'}`}>私域</span>
+                {/*<span className={`text-3xl font-bold ${isDarkMode ? 'text-blue-300' : 'text-blue-600'}`}>私域</span>*/}
+                <svg className={`${isDarkMode ? 'text-blue-300' : 'text-blue-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
               </div>
               <h1 className={`text-4xl font-bold text-center ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 多租户SaaS管理系统
               </h1>
               <p className={`mt-3 text-lg text-center max-w-lg ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                基于Next.js的现代化管理平台，助力企业高效管理团队与资源
+                基于Next.js的现代化私域管理平台<br/>助力企业高效管理团队与资源
               </p>
             </div>
-            
+
             <div className="grid md:grid-cols-2 gap-6 mb-8">
               <div className={`p-5 rounded-xl ${isDarkMode ? 'bg-blue-900/20 border border-blue-800/40' : 'bg-blue-50 border border-blue-100'}`}>
                 <div className="flex items-center mb-3">
@@ -74,7 +77,7 @@ export default function AuthLayout({
                   支持多工作空间独立管理，为每个企业提供专属环境，数据隔离安全可靠
                 </p>
               </div>
-              
+
               <div className={`p-5 rounded-xl ${isDarkMode ? 'bg-purple-900/20 border border-purple-800/40' : 'bg-purple-50 border border-purple-100'}`}>
                 <div className="flex items-center mb-3">
                   <div className={`h-8 w-8 rounded-lg ${isDarkMode ? 'bg-purple-700/40' : 'bg-purple-200'} flex items-center justify-center mr-3`}>
@@ -90,7 +93,7 @@ export default function AuthLayout({
                   基于角色的访问控制系统，确保用户只能访问其权限范围内的资源和功能
                 </p>
               </div>
-              
+
               <div className={`p-5 rounded-xl ${isDarkMode ? 'bg-teal-900/20 border border-teal-800/40' : 'bg-teal-50 border border-teal-100'}`}>
                 <div className="flex items-center mb-3">
                   <div className={`h-8 w-8 rounded-lg ${isDarkMode ? 'bg-teal-700/40' : 'bg-teal-200'} flex items-center justify-center mr-3`}>
@@ -106,7 +109,7 @@ export default function AuthLayout({
                   采用流行的毛玻璃设计风格，提供明亮通透的用户界面和流畅的交互体验
                 </p>
               </div>
-              
+
               <div className={`p-5 rounded-xl ${isDarkMode ? 'bg-amber-900/20 border border-amber-800/40' : 'bg-amber-50 border border-amber-100'}`}>
                 <div className="flex items-center mb-3">
                   <div className={`h-8 w-8 rounded-lg ${isDarkMode ? 'bg-amber-700/40' : 'bg-amber-200'} flex items-center justify-center mr-3`}>
@@ -168,11 +171,11 @@ export default function AuthLayout({
                 </div>
               </div>
             </div>
-            
+
           </div>
         </div>
       </div>
-      
+
       {/* 右侧登录/注册界面 - 占据1/3空间 */}
       <div className="w-full md:w-1/3 relative z-10 flex items-center justify-center">
         {children}

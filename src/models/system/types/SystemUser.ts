@@ -40,7 +40,7 @@ export interface IUserRole {
 export interface ISystemUser {
   id: number;              // 用户ID（主键）
   username: string;        // 登录用户名
-  password: string;        // 加密密码
+  password?: string;        // 加密密码
   email: string;           // 电子邮箱
   phone: string;           // 手机号码
   workspace_id: number;    // 所属工作空间ID
@@ -53,6 +53,8 @@ export interface ISystemUser {
   last_login_at?: Date;    // 最后登录时间
   created_at: Date;        // 创建时间
   updated_at?: Date;       // 更新时间
+  role?: string;
+  currentTeamId?: number;
 }
 
 /**

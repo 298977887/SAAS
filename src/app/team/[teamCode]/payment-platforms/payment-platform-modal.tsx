@@ -9,10 +9,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { useTeam } from '@/hooks/useTeam';
-import { useThemeMode } from '@/store/settingStore';
 import { useAccessToken } from '@/store/userStore';
-import { ThemeMode } from '@/types/enum';
 import { PaymentPlatform, PaymentPlatformStatus } from '@/models/team/types/payment-platform';
 import Modal from '@/components/ui/Modal';
 
@@ -29,10 +26,7 @@ interface PaymentPlatformModalProps {
 export default function PaymentPlatformModal({ isOpen, onClose, platform, onSuccess }: PaymentPlatformModalProps) {
   const params = useParams();
   const teamCode = params?.teamCode as string;
-  const { currentTeam } = useTeam();
   const accessToken = useAccessToken();
-  const themeMode = useThemeMode();
-  const isDarkMode = themeMode === ThemeMode.Dark;
   
   const isEditing = !!platform;
   
@@ -41,7 +35,7 @@ export default function PaymentPlatformModal({ isOpen, onClose, platform, onSucc
     name: '',
     order: 0,
     description: '',
-    status: PaymentPlatformStatus.ACTIVE
+    status: PaymentPlatformStatus.NORMAL
   });
   
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -65,7 +59,7 @@ export default function PaymentPlatformModal({ isOpen, onClose, platform, onSucc
         name: '',
         order: 0,
         description: '',
-        status: PaymentPlatformStatus.ACTIVE
+        status: PaymentPlatformStatus.NORMAL
       });
     }
     
@@ -76,7 +70,7 @@ export default function PaymentPlatformModal({ isOpen, onClose, platform, onSucc
    * 处理表单输入变化
    */
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
+    const { name, value } = e.target;
     
     // 处理数字类型字段
     if (name === 'order') {
@@ -225,9 +219,9 @@ export default function PaymentPlatformModal({ isOpen, onClose, platform, onSucc
             onChange={handleChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
           >
-            <option value={PaymentPlatformStatus.ACTIVE}>正常</option>
+            <option value={PaymentPlatformStatus.NORMAL}>正常</option>
             <option value={PaymentPlatformStatus.DISABLED}>停用</option>
-            <option value={PaymentPlatformStatus.STANDBY}>备用</option>
+            <option value={PaymentPlatformStatus.BACKUP}>备用</option>
             <option value={PaymentPlatformStatus.OTHER}>其他</option>
           </select>
         </div>

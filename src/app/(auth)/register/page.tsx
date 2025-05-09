@@ -247,13 +247,13 @@ export default function RegisterPage() {
         router.push('/login');
       }, 1500);
       
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('注册失败:', error);
       
       setErrors({
-        general: error.message || '注册失败，请稍后再试'
+        general: error instanceof Error ? error.message : '注册失败，请稍后再试'
       });
-      notification.error('注册失败：' + (error.message || '未知错误'));
+      notification.error('注册失败：' + (error instanceof Error ? error.message : '未知错误'));
     } finally {
       // 无论成功还是失败，都重置提交状态
       setFormState(prev => ({ ...prev, isSubmitting: false }));

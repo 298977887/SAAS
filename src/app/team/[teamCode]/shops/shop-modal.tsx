@@ -9,10 +9,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { useTeam } from '@/hooks/useTeam';
-import { useThemeMode } from '@/store/settingStore';
 import { useAccessToken } from '@/store/userStore';
-import { ThemeMode } from '@/types/enum';
 import { Shop, ShopStatus } from '@/models/team/types/shop';
 import Modal from '@/components/ui/Modal';
 
@@ -29,10 +26,7 @@ interface ShopModalProps {
 export default function ShopModal({ isOpen, onClose, shop, onSuccess }: ShopModalProps) {
   const params = useParams();
   const teamCode = params?.teamCode as string;
-  const { currentTeam } = useTeam();
   const accessToken = useAccessToken();
-  const themeMode = useThemeMode();
-  const isDarkMode = themeMode === ThemeMode.Dark;
   
   const isEditing = !!shop;
   
@@ -45,7 +39,7 @@ export default function ShopModal({ isOpen, onClose, shop, onSuccess }: ShopModa
     avatar: '',
     nickname: '',
     phone: '',
-    status: ShopStatus.ACTIVE,
+    status: ShopStatus.NORMAL,
     remark: ''
   });
   
@@ -79,7 +73,7 @@ export default function ShopModal({ isOpen, onClose, shop, onSuccess }: ShopModa
         avatar: '',
         nickname: '',
         phone: '',
-        status: ShopStatus.ACTIVE,
+        status: ShopStatus.NORMAL,
         remark: ''
       });
     }
@@ -277,11 +271,11 @@ export default function ShopModal({ isOpen, onClose, shop, onSuccess }: ShopModa
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             >
-              <option value={ShopStatus.ACTIVE}>正常</option>
+              <option value={ShopStatus.NORMAL}>正常</option>
               <option value={ShopStatus.DISABLED}>停用</option>
               <option value={ShopStatus.BANNED}>封禁</option>
               <option value={ShopStatus.PENDING}>待解封</option>
-              <option value={ShopStatus.RESERVE}>备用</option>
+              <option value={ShopStatus.BACKUP}>备用</option>
               <option value={ShopStatus.OTHER}>其他</option>
             </select>
           </div>
