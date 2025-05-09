@@ -299,9 +299,9 @@ export class UserRoleModel {
         if (userDetails.length === 0 || !userDetails[0].role) continue;
         
         // 确定角色类型和名称
-        let roleType = userDetails[0].role;
+        const roleType = userDetails[0].role;
         let roleName = '普通用户';
-        let isCustomRole = false;
+        const isCustomRole = false;
         
         // 根据旧角色确定新的角色名称
         if (roleType === 'admin') {

@@ -8,7 +8,8 @@ Always respond in 中文
 ## 注意事项
 
 - 开发时，单文件代码严格限制在700行以内（含注释）  
-- 不要画蛇添足！  
+- 不要画蛇添足！ 
+- 禁止使用any类型！ 
 - 必须包含三级注释体系：  
     ▸ 文件头注释（作者:阿瑞/功能/版本）  
     ▸ 模块级注释（逻辑分段说明）  
@@ -35,5 +36,4 @@ Always respond in 中文
 
 数据库是docker中搭建的，可以使用以下命令进入数据库：  
 ```bash
-
 docker exec -it my-mysql mysql -uroot -p"aiwoQwo520.."

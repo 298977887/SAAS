@@ -24,7 +24,7 @@ export function detectBrowser(): BrowserInfo | null {
   }
   
   const ua = navigator.userAgent.toLowerCase();
-  let browserInfo: BrowserInfo = {
+  const browserInfo: BrowserInfo = {
     name: '未知浏览器',
     version: 0,
     isCompatible: true,

@@ -166,7 +166,7 @@ const getSalesRecords = async (req: NextRequest, params: { teamCode: string }, p
       const [rows] = await connection.query<SalesRecordRow[]>(querySql, queryParams);
       
       // 查询每条销售记录关联的产品
-      let salesRecords = rows;
+      const salesRecords = rows;
       if (salesRecords.length > 0) {
         for (let i = 0; i < salesRecords.length; i++) {
           const record = salesRecords[i];

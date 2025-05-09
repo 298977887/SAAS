@@ -6,8 +6,27 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { Pool } from 'mysql2/promise';
+import { Pool, RowDataPacket } from 'mysql2/promise';
 import { withTeamDb } from '@/lib/db/team/api-handler';
+
+/**
+ * 店铺接口定义
+ */
+interface Shop extends RowDataPacket {
+  id: number;
+  unionid?: string;
+  openid?: string;
+  accountNo?: string;
+  wechat?: string;
+  avatar?: string;
+  nickname?: string;
+  phone?: string;
+  status: number;
+  remark?: string;
+  createdAt: string;
+  updatedAt: string;
+  accountTypes?: number[];
+}
 
 /**
  * GET 获取店铺列表
@@ -87,7 +106,7 @@ const getShops = async (req: NextRequest, params: { teamCode: string }, pool: Po
       const [rows] = await connection.query(querySql, queryParams);
       
       // 获取每个店铺的账号类型
-      let shops = Array.isArray(rows) ? rows : [];
+      const shops = Array.isArray(rows) ? rows as Shop[] : [];
       if (shops.length > 0) {
         for (const shop of shops) {
           // 查询店铺关联的账号类型

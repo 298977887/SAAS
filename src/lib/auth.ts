@@ -56,7 +56,7 @@ export async function createToken(user: ISystemUser): Promise<string> {
   
   try {
     // 使用jose库生成JWT令牌
-    const token = await new jose.SignJWT(userInfo as Record<string, any>)
+    const token = await new jose.SignJWT(JSON.parse(JSON.stringify(userInfo)))
       .setProtectedHeader({ alg: 'HS256' })
       .setExpirationTime(JWT_EXPIRES_IN)
       .sign(new TextEncoder().encode(JWT_SECRET));

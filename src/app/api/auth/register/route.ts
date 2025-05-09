@@ -12,6 +12,29 @@ import { WorkspaceStatus, UserStatus } from '@/models/system/types';
 import db from '@/lib/db';
 
 /**
+ * 工作空间邀请接口
+ */
+interface WorkspaceInvitation {
+  id: number;
+  token: string;
+  workspace_id: number;
+  role?: string;
+  role_type?: string;
+  role_name?: string;
+  is_custom_role?: boolean;
+  workspace_name?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * 数据库查询结果接口
+ */
+interface QueryResult {
+  insertId: number;
+  affectedRows: number;
+}
+
+/**
  * 注册请求处理函数
  * 处理POST请求，创建工作空间和用户，或将用户添加到现有工作空间
  */
@@ -82,7 +105,7 @@ export async function POST(request: NextRequest) {
       let isCustomRole = false; // 默认不是自定义角色
       let invitationId: number | null = null;
       let returnWorkspaceName = workspaceName || '';
-      let isInviteFlow = Boolean(inviteToken && inviteToken.trim() !== '');
+      const isInviteFlow = Boolean(inviteToken && inviteToken.trim() !== '');
       
       if (isInviteFlow) {
         console.log('处理邀请注册，令牌:', inviteToken);
@@ -106,12 +129,12 @@ export async function POST(request: NextRequest) {
           );
           
           // 检查是否有结果
-          if (!rows || !(rows as any[]).length) {
+          if (!rows || !(rows as WorkspaceInvitation[]).length) {
             throw new Error('无效的邀请令牌或已过期');
           }
           
           // 获取原始邀请记录
-          const rawInvitation = (rows as any[])[0];
+          const rawInvitation = (rows as WorkspaceInvitation[])[0];
           
           // 打印调试信息
           console.log('调试 - 原始记录:', rawInvitation);
@@ -150,9 +173,10 @@ export async function POST(request: NextRequest) {
             console.error('工作空间ID提取失败，可用字段:', Object.keys(rawInvitation));
             throw new Error('邀请中的工作空间ID无效，请联系管理员');
           }
-        } catch (error: any) {
+        } catch (error) {
           console.error('处理邀请记录时出错:', error);
-          throw new Error(`邀请处理失败: ${error.message}`);
+          const errorMessage = error instanceof Error ? error.message : '未知错误';
+          throw new Error(`邀请处理失败: ${errorMessage}`);
         }
       } else {
         // 普通注册流程，创建新工作空间
@@ -165,7 +189,7 @@ export async function POST(request: NextRequest) {
         );
         
         // 从插入结果中获取ID
-        const resultObj = (result as any)[0];
+        const resultObj = (result as [QueryResult, unknown])[0];
         workspaceId = resultObj.insertId;
         
         // 管理员角色
@@ -238,14 +262,15 @@ export async function POST(request: NextRequest) {
         { status: 201 }
       );
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('注册失败:', error);
     
     // 根据错误类型返回适当的错误信息
-    const statusCode = error.code === 'ER_DUP_ENTRY' ? 409 : 500;
-    const errorMessage = error.code === 'ER_DUP_ENTRY' 
+    const errorObj = error as { code?: string; message?: string };
+    const statusCode = errorObj.code === 'ER_DUP_ENTRY' ? 409 : 500;
+    const errorMessage = errorObj.code === 'ER_DUP_ENTRY' 
       ? '用户名、邮箱或手机号已存在' 
-      : error.message || '注册失败，请稍后再试';
+      : errorObj.message || '注册失败，请稍后再试';
     
     return NextResponse.json(
       { error: errorMessage },
