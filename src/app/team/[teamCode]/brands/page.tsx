@@ -393,7 +393,7 @@ export default function BrandsPage() {
           <div className={`p-6 rounded-lg shadow-xl max-w-md w-full ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
             <h3 className={`text-lg font-medium mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>确认删除</h3>
             <p className={`mb-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>
-              您确定要删除品牌 "{brandToDelete?.name}" 吗？此操作不可撤销。
+              您确定要删除品牌 &quot;{brandToDelete?.name}&quot; 吗？此操作不可撤销。
             </p>
             <div className="flex justify-end gap-3">
               <button

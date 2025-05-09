@@ -5,9 +5,6 @@
  * 版本: 1.0.0
  */
 
-import { Product } from '@/models/team/types/product';
-import { Customer } from '@/models/team/types/customer';
-
 /**
  * 已选产品列表组件属性
  */

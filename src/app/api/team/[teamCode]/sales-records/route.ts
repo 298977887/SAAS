@@ -64,6 +64,14 @@ interface ProductRow extends RowDataPacket {
 }
 
 /**
+ * 数据库查询结果类型
+ */
+interface DbResult {
+  insertId: number;
+  affectedRows: number;
+}
+
+/**
  * GET 获取销售记录列表
  */
 const getSalesRecords = async (req: NextRequest, params: { teamCode: string }, pool: Pool) => {
@@ -175,7 +183,7 @@ const getSalesRecords = async (req: NextRequest, params: { teamCode: string }, p
           if (record.orderStatus && typeof record.orderStatus === 'string') {
             try {
               record.orderStatus = JSON.parse(record.orderStatus as string);
-            } catch (e) {
+            } catch {
               record.orderStatus = ['正常']; // 默认值
             }
           }
@@ -326,7 +334,7 @@ const createSalesRecord = async (req: NextRequest, params: { teamCode: string },
         data.remark || null
       ]);
       
-      const salesRecordId = (result as any).insertId;
+      const salesRecordId = (result as DbResult).insertId;
       
       // 插入销售记录-产品关联
       if (data.products && data.products.length > 0) {
@@ -367,15 +375,13 @@ const createSalesRecord = async (req: NextRequest, params: { teamCode: string },
         WHERE sr.id = ?
       `, [salesRecordId]);
       
-      let salesRecord = null;
-      if (salesRecordRows.length > 0) {
-        salesRecord = salesRecordRows[0];
-        
+      const salesRecord = salesRecordRows.length > 0 ? salesRecordRows[0] : null;
+      if (salesRecord) {
         // 处理order_status字段，从JSON字符串转为数组
         if (salesRecord.orderStatus && typeof salesRecord.orderStatus === 'string') {
           try {
             salesRecord.orderStatus = JSON.parse(salesRecord.orderStatus as string);
-          } catch (e) {
+          } catch {
             salesRecord.orderStatus = ['正常']; // 默认值
           }
         }

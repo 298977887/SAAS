@@ -30,6 +30,13 @@ export interface User {
 }
 
 /**
+ * JWT可序列化对象类型
+ */
+export interface JWTPayload {
+  [key: string]: unknown;
+}
+
+/**
  * 创建JWT令牌
  * @param user 用户信息
  * @returns JWT令牌
@@ -55,8 +62,24 @@ export async function createToken(user: ISystemUser): Promise<string> {
   };
   
   try {
+    // 将用户信息转换为JWT有效载荷
+    const payload: JWTPayload = {
+      id: userInfo.id,
+      username: userInfo.username,
+      email: userInfo.email,
+      role: userInfo.role,
+      isAdmin: userInfo.isAdmin,
+      teamId: userInfo.teamId,
+      phone: userInfo.phone,
+      roleType: userInfo.roleType,
+      roleName: userInfo.roleName,
+      isCustomRole: userInfo.isCustomRole,
+      status: userInfo.status,
+      workspace: userInfo.workspace
+    };
+    
     // 使用jose库生成JWT令牌
-    const token = await new jose.SignJWT(JSON.parse(JSON.stringify(userInfo)))
+    const token = await new jose.SignJWT(payload)
       .setProtectedHeader({ alg: 'HS256' })
       .setExpirationTime(JWT_EXPIRES_IN)
       .sign(new TextEncoder().encode(JWT_SECRET));

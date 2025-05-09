@@ -10,8 +10,16 @@ import { Pool, RowDataPacket } from 'mysql2/promise';
 import { withTeamDb } from '@/lib/db/team/api-handler';
 
 /**
- * 店铺接口定义
+ * 自定义类型定义
  */
+interface CountResult extends RowDataPacket {
+  total: number;
+}
+
+interface ShopType extends RowDataPacket {
+  categoryId: number;
+}
+
 interface Shop extends RowDataPacket {
   id: number;
   unionid?: string;
@@ -83,9 +91,9 @@ const getShops = async (req: NextRequest, params: { teamCode: string }, pool: Po
         ${joinAccountTypeTable}
         ${whereClause}
       `;
-      const [totalRows] = await connection.query(countSql, params);
+      const [totalRows] = await connection.query<CountResult[]>(countSql, params);
       
-      const total = (totalRows as any)[0].total;
+      const total = totalRows[0].total;
       
       // 查询分页数据
       const querySql = `
@@ -103,20 +111,20 @@ const getShops = async (req: NextRequest, params: { teamCode: string }, pool: Po
       // 添加分页参数到params数组
       const queryParams = [...params, pageSize, offset];
       
-      const [rows] = await connection.query(querySql, queryParams);
+      const [rows] = await connection.query<Shop[]>(querySql, queryParams);
       
       // 获取每个店铺的账号类型
-      const shops = Array.isArray(rows) ? rows as Shop[] : [];
+      const shops = Array.isArray(rows) ? rows : [];
       if (shops.length > 0) {
         for (const shop of shops) {
           // 查询店铺关联的账号类型
-          const [accountTypes] = await connection.query(
+          const [accountTypes] = await connection.query<ShopType[]>(
             `SELECT category_id as categoryId FROM shop_account_types WHERE shop_id = ?`,
             [shop.id]
           );
           
           shop.accountTypes = Array.isArray(accountTypes) 
-            ? accountTypes.map((type: any) => type.categoryId) 
+            ? accountTypes.map((type) => type.categoryId) 
             : [];
         }
       }
