@@ -149,7 +149,7 @@ export default function ShopModal({ isOpen, onClose, shop, onSuccess }: ShopModa
         throw new Error(result.error || '操作失败');
       }
       
-      // 成功处理
+      // 成功处理 
       onSuccess();
       onClose();
     } catch (err) {

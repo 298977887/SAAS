@@ -125,7 +125,7 @@ export class TeamDatabase {
         sku VARCHAR(50) COMMENT '产品货号，可不填',
         aliases JSON COMMENT '产品别名数组，可不填',
         level VARCHAR(30) COMMENT '产品级别/等级，可不填',
-        cost JSON COMMENT 'JSON对象，包含成本价、包装费和运费',
+        cost JSON COMMENT 'JSON对象，包含成本价(cost_price)、包装费(packaging_fee)和运费(shipping_fee)',
         price DECIMAL(10, 2) NOT NULL COMMENT '产品售价',
         stock INT DEFAULT 0 COMMENT '当前库存数量',
         logistics_status VARCHAR(50) COMMENT '最新物流状态描述',
@@ -322,6 +322,25 @@ export class TeamDatabase {
         INDEX idx_date (date),
         UNIQUE KEY uk_shop_date (shop_id, date)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='店铺粉丝增长记录表'
+    `,
+    
+    // 店铺引流消费表
+    shop_traffic_expenses: `
+      CREATE TABLE IF NOT EXISTS shop_traffic_expenses (
+        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT '消费记录ID',
+        shop_id INT UNSIGNED NOT NULL COMMENT '关联店铺表的外键',
+        record_time DATETIME NOT NULL COMMENT '记录时间，精确到小时',
+        expense_amount DECIMAL(10, 2) NOT NULL DEFAULT 0.00 COMMENT '引流消费金额',
+        traffic_channel VARCHAR(50) COMMENT '引流渠道',
+        traffic_platform VARCHAR(50) COMMENT '引流平台',
+        remark TEXT COMMENT '备注信息', 
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+        INDEX idx_shop_id (shop_id),
+        INDEX idx_record_time (record_time),
+        INDEX idx_traffic_channel (traffic_channel),
+        INDEX idx_traffic_platform (traffic_platform)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='店铺引流消费记录表'
     `
   };
 
@@ -380,7 +399,11 @@ export class TeamDatabase {
      
     // 店铺粉丝增长表的外键
     `ALTER TABLE shop_follower_growth
-     ADD CONSTRAINT fk_follower_shop FOREIGN KEY (shop_id) REFERENCES shops(id) ON DELETE CASCADE`
+     ADD CONSTRAINT fk_follower_shop FOREIGN KEY (shop_id) REFERENCES shops(id) ON DELETE CASCADE`,
+     
+    // 店铺引流消费表的外键
+    `ALTER TABLE shop_traffic_expenses
+     ADD CONSTRAINT fk_traffic_expense_shop FOREIGN KEY (shop_id) REFERENCES shops(id) ON DELETE CASCADE`
   ];
 
   /**

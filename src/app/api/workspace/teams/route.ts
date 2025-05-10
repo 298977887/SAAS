@@ -15,13 +15,13 @@ import { SystemRoleType } from '@/models/system/types';
  */
 export async function GET(req: NextRequest) {
   try {
-    console.log('API: 接收到获取团队列表请求');
+    //console.log('API: 接收到获取团队列表请求');
     
     // 获取查询参数
     const url = new URL(req.url);
     const workspaceId = url.searchParams.get('workspaceId');
     
-    console.log('API: 获取工作空间ID:', workspaceId);
+    //console.log('API: 获取工作空间ID:', workspaceId);
     
     // 验证参数
     if (!workspaceId) {

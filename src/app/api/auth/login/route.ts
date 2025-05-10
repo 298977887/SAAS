@@ -10,6 +10,7 @@ import { SystemUserModel } from '@/models/system/SystemUserModel';
 import { WorkspaceModel } from '@/models/system/WorkspaceModel';
 import { AuthUtils } from '@/lib/auth';
 import { UserStatus } from '@/models/system/types';
+import bcrypt from 'bcryptjs';
 
 /**
  * 处理登录请求
@@ -40,7 +41,14 @@ export async function POST(req: NextRequest) {
     }
 
     // 验证密码
-    const isPasswordValid = await AuthUtils.verifyPassword(password, user.password);
+    if (!user.password) {
+      return NextResponse.json(
+        { error: '用户密码数据异常' },
+        { status: 500 }
+      );
+    }
+    
+    const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return NextResponse.json(
         { error: '用户名或密码错误' },
@@ -76,7 +84,7 @@ export async function POST(req: NextRequest) {
     userInfo.workspace.status = workspace.status;
 
     // 生成JWT访问令牌
-    const accessToken = AuthUtils.generateToken(user);
+    const accessToken = await AuthUtils.createToken(user);
 
     // 返回成功响应
     return NextResponse.json({

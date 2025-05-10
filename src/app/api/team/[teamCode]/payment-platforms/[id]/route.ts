@@ -12,7 +12,7 @@ import { withTeamDb } from '@/lib/db/team/api-handler';
 /**
  * GET 获取单个支付平台
  */
-const getPaymentPlatform = async (req: NextRequest, params: { teamCode: string, id: string }, pool: Pool) => {
+const getPaymentPlatform = async (_req: NextRequest, params: { teamCode: string, id: string }, pool: Pool) => {
   const { teamCode, id } = params;
   
   if (!id || isNaN(Number(id))) {
@@ -167,7 +167,7 @@ const updatePaymentPlatform = async (req: NextRequest, params: { teamCode: strin
 /**
  * DELETE 删除支付平台
  */
-const deletePaymentPlatform = async (req: NextRequest, params: { teamCode: string, id: string }, pool: Pool) => {
+const deletePaymentPlatform = async (_req: NextRequest, params: { teamCode: string, id: string }, pool: Pool) => {
   const { teamCode, id } = params;
   
   if (!id || isNaN(Number(id))) {

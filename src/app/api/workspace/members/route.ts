@@ -10,6 +10,13 @@ import { AuthUtils } from '@/lib/auth';
 import db from '@/lib/db';
 
 /**
+ * 错误接口
+ */
+interface ApiError extends Error {
+  message: string;
+}
+
+/**
  * 获取工作空间的成员列表
  */
 export async function GET(req: NextRequest) {
@@ -38,9 +45,11 @@ export async function GET(req: NextRequest) {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       try {
         const token = authHeader.split(' ')[1];
-        const decoded = AuthUtils.verifyToken(token);
-        userId = decoded.id;
-        console.log('API: 令牌验证成功, 用户ID:', userId);
+        const decoded = await AuthUtils.verifyToken(token);
+        if (decoded) {
+          userId = decoded.id;
+          console.log('API: 令牌验证成功, 用户ID:', userId);
+        }
       } catch (error) {
         console.log('API: 令牌验证失败, 跳过用户验证');
         // 令牌验证失败时，只是记录错误，但仍然允许请求继续
@@ -75,12 +84,13 @@ export async function GET(req: NextRequest) {
       members
     });
     
-  } catch (error: any) {
-    console.error('API: 获取工作空间成员列表失败:', error);
+  } catch (error: unknown) {
+    const err = error as ApiError;
+    console.error('API: 获取工作空间成员列表失败:', err);
     
     // 其他错误
     return NextResponse.json(
-      { error: '获取工作空间成员列表失败: ' + error.message },
+      { error: '获取工作空间成员列表失败: ' + err.message },
       { status: 500 }
     );
   }

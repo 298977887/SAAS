@@ -7,11 +7,11 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { WorkspaceStatus, UserStatus } from '@/models/system/types';
+import { WorkspaceStatus, UserStatus} from '@/models/system/types';
 
 /**
  * 用户信息类型定义
- * 精简版的用户数据，移除敏感字段
+ * 精简版的用户数据，移除敏感字段 
  */
 export interface IUserInfo {
   id: number;

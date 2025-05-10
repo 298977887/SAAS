@@ -12,7 +12,7 @@ import { withTeamDb } from '@/lib/db/team/api-handler';
 /**
  * GET 获取单个品类
  */
-const getCategory = async (req: NextRequest, params: { teamCode: string, id: string }, pool: Pool) => {
+const getCategory = async (_req: NextRequest, params: { teamCode: string, id: string }, pool: Pool) => {
   const { teamCode, id } = params;
   
   if (!id || isNaN(Number(id))) {
@@ -162,7 +162,7 @@ const updateCategory = async (req: NextRequest, params: { teamCode: string, id: 
 /**
  * DELETE 删除品类
  */
-const deleteCategory = async (req: NextRequest, params: { teamCode: string, id: string }, pool: Pool) => {
+const deleteCategory = async (_req: NextRequest, params: { teamCode: string, id: string }, pool: Pool) => {
   const { teamCode, id } = params;
   
   if (!id || isNaN(Number(id))) {

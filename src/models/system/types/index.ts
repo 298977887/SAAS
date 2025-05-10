@@ -9,3 +9,4 @@ export * from './Workspace';
 export * from './SystemUser';
 export * from './Team';
 export * from './UserTeamRelation'; 
+export * from './IUserInfo';

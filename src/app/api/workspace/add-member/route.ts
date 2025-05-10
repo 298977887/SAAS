@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { AuthUtils } from '@/lib/auth';
 import db from '@/lib/db';
 import { SystemRoleType } from '@/models/system/types';
+import bcrypt from 'bcryptjs'; // 导入bcrypt库用于密码加密
 
 /**
  * 添加成员到工作空间
@@ -48,7 +49,12 @@ export async function POST(req: NextRequest) {
     
     // 解析令牌
     const token = authHeader.split(' ')[1];
-    const decoded = AuthUtils.verifyToken(token);
+    const decoded = await AuthUtils.verifyToken(token);
+    
+    // 验证令牌是否有效
+    if (!decoded) {
+      return NextResponse.json({ error: '无效的访问令牌' }, { status: 401 });
+    }
     
     // 查询当前用户
     const currentUserRows = await db.query(
@@ -152,7 +158,8 @@ export async function POST(req: NextRequest) {
       }
       
       // 加密密码
-      const hashedPassword = await AuthUtils.hashPassword(password);
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password, salt);
       
       // 确定角色信息
       const finalRoleType = role_type || SystemRoleType.USER;

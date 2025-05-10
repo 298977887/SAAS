@@ -94,7 +94,7 @@ function handleUnauthenticated(
   if (authConfig.clientSideAuthPaths.some(
     (path: string) => pathname.startsWith(path))
   ) {
-    logger.debug('客户端认证路径', { pathname });
+    //logger.debug('客户端认证路径', { pathname });
     return NextResponse.next();
   }
 
@@ -169,7 +169,7 @@ function verifyTokenSync(token: string): boolean {
 // ===================== 主中间件逻辑 =====================
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  logger.debug('处理请求路径', { pathname });
+  //logger.debug('处理请求路径', { pathname });
 
   // 静态资源直接放行
   if (authConfig.staticAssetRoutes.some(
@@ -180,7 +180,7 @@ export function middleware(request: NextRequest) {
 
   // 公开路径处理
   if (isPublicPath(pathname)) {
-    logger.debug('公开路径访问', { pathname });
+    //logger.debug('公开路径访问', { pathname });
     return NextResponse.next();
   }
 

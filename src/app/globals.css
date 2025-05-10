@@ -5,7 +5,9 @@
  */
 
 @import "tailwindcss";
-
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 /* 全局变量定义 */
 :root {
   /* 明亮现代主题配色 */

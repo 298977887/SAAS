@@ -12,7 +12,7 @@ import { withTeamDb } from '@/lib/db/team/api-handler';
 /**
  * GET 获取单个品牌
  */
-const getBrand = async (req: NextRequest, params: { teamCode: string, id: string }, pool: Pool) => {
+const getBrand = async (_req: NextRequest, params: { teamCode: string, id: string }, pool: Pool) => {
   const { teamCode, id } = params;
   
   if (!id || isNaN(Number(id))) {
@@ -162,7 +162,7 @@ const updateBrand = async (req: NextRequest, params: { teamCode: string, id: str
 /**
  * DELETE 删除品牌
  */
-const deleteBrand = async (req: NextRequest, params: { teamCode: string, id: string }, pool: Pool) => {
+const deleteBrand = async (_req: NextRequest, params: { teamCode: string, id: string }, pool: Pool) => {
   const { teamCode, id } = params;
   
   if (!id || isNaN(Number(id))) {

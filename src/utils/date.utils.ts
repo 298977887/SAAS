@@ -10,16 +10,44 @@ export function formatDate(
 ): string {
   if (!date) return '';
   
-  const d = date instanceof Date ? date : new Date(date);
+  // 如果输入已经是格式化的日期字符串，且符合目标格式，直接返回
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) && format === 'YYYY-MM-DD') {
+    return date;
+  }
+  
+  let d: Date;
+  
+  // 确保日期字符串正确解析，不受时区影响
+  if (typeof date === 'string') {
+    // 检查是否是ISO格式日期字符串
+    if (/^\d{4}-\d{2}-\d{2}T/.test(date)) {
+      d = new Date(date);
+    } else {
+      // 对于YYYY-MM-DD格式，手动解析以避免时区问题
+      const parts = date.split(/\D/);
+      if (parts.length >= 3) {
+        // 使用UTC来避免时区问题
+        d = new Date(Date.UTC(
+          parseInt(parts[0]), 
+          parseInt(parts[1]) - 1, 
+          parseInt(parts[2])
+        ));
+      } else {
+        d = new Date(date);
+      }
+    }
+  } else {
+    d = date instanceof Date ? date : new Date(date);
+  }
+  
   if (isNaN(d.getTime())) return '';
   
-  // 创建一个没有时区偏移的日期
-  const year = d.getFullYear();
-  const month = d.getMonth() + 1;
-  const day = d.getDate();
+  // 使用UTC日期组件来避免时区问题
+  const year = d.getUTCFullYear();
+  const month = d.getUTCMonth() + 1;
+  const day = d.getUTCDate();
   
   if (format === 'YYYY-MM-DD') {
-    // 使用本地日期而不是UTC日期，防止时区影响
     return `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
   }
   
@@ -28,9 +56,9 @@ export function formatDate(
     'YYYY': year.toString(),
     'MM': month.toString().padStart(2, '0'),
     'DD': day.toString().padStart(2, '0'),
-    'HH': d.getHours().toString().padStart(2, '0'),
-    'mm': d.getMinutes().toString().padStart(2, '0'),
-    'ss': d.getSeconds().toString().padStart(2, '0')
+    'HH': d.getUTCHours().toString().padStart(2, '0'),
+    'mm': d.getUTCMinutes().toString().padStart(2, '0'),
+    'ss': d.getUTCSeconds().toString().padStart(2, '0')
   };
 
   return format.replace(/YYYY|MM|DD|HH|mm|ss/g, match => replacements[match]);
